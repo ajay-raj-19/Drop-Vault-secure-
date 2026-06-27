@@ -126,12 +126,12 @@ class _ReminderNotificationOverlayState extends ConsumerState<ReminderNotificati
                     constraints: const BoxConstraints(maxWidth: 512),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E).withOpacity(0.9) : Colors.black.withOpacity(0.9),
+                        color: isDark ? const Color(0xFF1E1E1E).withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.12)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),

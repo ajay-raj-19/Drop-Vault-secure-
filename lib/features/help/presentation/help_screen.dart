@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_version.dart';
 
 class HelpSupportPage extends StatefulWidget {
   const HelpSupportPage({super.key});
@@ -92,8 +93,8 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -127,7 +128,6 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
   }
 
   Widget _buildHeroSection() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         GlassCard(
@@ -156,7 +156,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
                 Container(
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
-                      colors: [const Color(0xFFD9B9FD).withOpacity(0.2), Colors.transparent],
+                      colors: [const Color(0xFFD9B9FD).withValues(alpha: 0.2), Colors.transparent],
                       stops: const [0.0, 0.7],
                     ),
                   ),
@@ -167,7 +167,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [background.withOpacity(0.6), Colors.transparent],
+                      colors: [background.withValues(alpha: 0.6), Colors.transparent],
                     ),
                   ),
                 ),
@@ -235,7 +235,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No email application found on this device.')),
+            const SnackBar(content: Text('No email application installed')),
           );
           _showFallbackDialog(emailAddress);
         }
@@ -243,7 +243,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No email application found on this device.')),
+          const SnackBar(content: Text('No email application installed')),
         );
         _showFallbackDialog(emailAddress);
       }
@@ -272,8 +272,8 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: Theme.of(ctx).brightness == Brightness.dark
-                    ? Colors.white.withOpacity(0.05)
-                    : Colors.black.withOpacity(0.05),
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText(
@@ -296,15 +296,15 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
           ElevatedButton.icon(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: email));
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Email copied successfully.'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+              if (!ctx.mounted) return;
+              if (!mounted) return;
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Email copied successfully.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             icon: const Icon(Icons.copy, color: Colors.white),
             label: const Text('Copy Email'),
@@ -353,7 +353,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
                   secondaryContainer,
                   onSecondaryContainer,
                   () => _launchMail(
-                    'Drop Vault Support Request',
+                    'Drop Vault Support',
                     'Hello,\n\nI need help with:',
                   ),
                 ),
@@ -363,7 +363,7 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
                   errorContainer,
                   onErrorContainer,
                   () => _launchMail(
-                    'Drop Vault Bug Report',
+                    'Bug Report - Drop Vault',
                     'Device:\n\nAndroid Version:\n\nApp Version:\n\nBug Description:\n\nSteps To Reproduce:',
                   ),
                 ),
@@ -438,12 +438,12 @@ class _HelpSupportPageState extends State<HelpSupportPage> with SingleTickerProv
             style: TextStyle(fontSize: 16, color: onSurfaceVariant, height: 1.5),
           ),
           const SizedBox(height: 16),
-          Divider(color: outlineVariant.withOpacity(0.5)),
+          Divider(color: outlineVariant.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Version 2.4.0', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: onSurfaceVariant)),
+              Text('Version ${AppVersionInfo.version} (${AppVersionInfo.buildNumber})', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: onSurfaceVariant)),
               GestureDetector(
                 onTap: () => context.push('/main/profile/terms'),
                 child: Text(

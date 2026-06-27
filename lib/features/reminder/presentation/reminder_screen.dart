@@ -2,8 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/providers/providers.dart';
@@ -137,8 +135,8 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -207,7 +205,7 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
           decoration: BoxDecoration(
             color: isActive ? primaryContainer : Colors.transparent,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: isActive ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
+            boxShadow: isActive ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
           ),
           alignment: Alignment.center,
           child: Text(
@@ -322,7 +320,7 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
             ],
           ),
           const SizedBox(height: 16),
-          Divider(height: 1, color: outlineVariant.withOpacity(0.5)),
+          Divider(height: 1, color: outlineVariant.withValues(alpha: 0.5)),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -337,7 +335,7 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
                   IconButton(
                     icon: const Icon(Icons.delete, size: 20),
                     onPressed: () => ref.read(reminderProvider.notifier).deleteReminder(id),
-                    style: IconButton.styleFrom(foregroundColor: error, hoverColor: errorContainer.withOpacity(0.5)),
+                    style: IconButton.styleFrom(foregroundColor: error, hoverColor: errorContainer.withValues(alpha: 0.5)),
                   ),
                 ],
               ),
@@ -422,6 +420,7 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (date != null) {
+                        if (!context.mounted) return;
                         final time = await showTimePicker(
                           context: context,
                           initialTime: TimeOfDay.fromDateTime(selectedDate),
@@ -515,17 +514,12 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: surfaceContainerHigh.withOpacity(0.3),
+                  color: surfaceContainerHigh.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
-                  child: Image.network(
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuCoBQwIVYC5u0oBu24ve4SgHEotx4o0t2RDC9UTtMal6cmrSyOEbble-rxJGrIWp3ClyUX85KLZVW59iqMMJA01zhiGgH5AmrPOoxAVyM0eM8z8a-xSfAgsZNhDhhzAJUp_WDGvZl80NdD16xiXDm0qH26QLLiG1cmscRVe3rv-kQh-KueTDz-KRVtxpmcJAVEZgot5YuladHzlaEy7E8c1RpYlk7iPAEoQsVVAaIdESjMocwYYk_XH3g8miS8mHC2vq-4_wIm-CAX-',
-                    fit: BoxFit.contain,
-                    color: primary.withOpacity(0.2),
-                    colorBlendMode: BlendMode.dstIn,
-                  ),
+                  child: Icon(Icons.alarm, size: 192, color: primary.withValues(alpha: 0.2)),
                 ),
               ),
               RotationTransition(
@@ -534,7 +528,7 @@ class _RemindersPageState extends ConsumerState<RemindersPage> with SingleTicker
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: outlineVariant.withOpacity(0.3),
+                      color: outlineVariant.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_colors.dart';
 
 class AboutDeveloperPage extends StatelessWidget {
   const AboutDeveloperPage({super.key});
@@ -16,7 +15,6 @@ class AboutDeveloperPage extends StatelessWidget {
     final onSurface = context.appColors.primaryText;
     final onSurfaceVariant = context.appColors.secondaryText;
     final outlineVariant = context.appColors.border;
-    final secondary = context.colorScheme.secondary;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -28,8 +26,8 @@ class AboutDeveloperPage extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: background.withOpacity(0.8),
-                border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+                color: background.withValues(alpha: 0.8),
+                border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SafeArea(
@@ -73,14 +71,14 @@ class AboutDeveloperPage extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+                        color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.white,
                         width: 4,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: isDark
-                              ? const Color(0xFF6D528E).withOpacity(0.3)
-                              : Colors.black.withOpacity(0.15),
+                              ? const Color(0xFF6D528E).withValues(alpha: 0.3)
+                              : Colors.black.withValues(alpha: 0.15),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         )
@@ -88,7 +86,7 @@ class AboutDeveloperPage extends StatelessWidget {
                     ),
                     child: ClipOval(
                       child: Image.asset(
-                        'assets/images/developer.png (2).png',
+                        'assets/images/developer.webp',
                         fit: BoxFit.cover,
                         width: 140,
                         height: 140,
@@ -141,7 +139,7 @@ class AboutDeveloperPage extends StatelessWidget {
                       ),
                       
                       const SizedBox(height: 24),
-                      Divider(color: outlineVariant.withOpacity(0.5)),
+                      Divider(color: outlineVariant.withValues(alpha: 0.5)),
                       const SizedBox(height: 24),
 
                       // Key details

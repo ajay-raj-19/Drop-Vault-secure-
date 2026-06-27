@@ -37,7 +37,7 @@ class DesignTokens {
   // Box Shadow Presets
   static List<BoxShadow> get shadowLight => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 20,
           offset: const Offset(0, 10),
         )
@@ -45,7 +45,7 @@ class DesignTokens {
 
   static List<BoxShadow> get shadowDark => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           blurRadius: 20,
           offset: const Offset(0, 10),
         )
@@ -53,7 +53,7 @@ class DesignTokens {
 
   static List<BoxShadow> get shadowAccent => [
         BoxShadow(
-          color: const Color(0xffC85B84).withOpacity(0.4),
+          color: const Color(0xffC85B84).withValues(alpha: 0.4),
           blurRadius: 20,
           offset: const Offset(0, 10),
         )
@@ -61,7 +61,7 @@ class DesignTokens {
 
   static List<BoxShadow> get shadowNav => [
         BoxShadow(
-          color: const Color(0xFF6D528E).withOpacity(0.1),
+          color: const Color(0xFF6D528E).withValues(alpha: 0.1),
           blurRadius: 30,
           offset: const Offset(0, -10),
         )

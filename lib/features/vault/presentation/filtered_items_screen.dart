@@ -6,6 +6,7 @@ import '../../../core/providers/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/premium_empty_state.dart';
+import '../../../core/widgets/desktop_sidebar.dart';
 import 'collection_items_screen.dart';
 
 /// Configuration for each item category (icon, colors, sample data).
@@ -39,14 +40,14 @@ class _SampleItem {
 
 /// Maps category type strings to their display configuration.
 final Map<String, _CategoryConfig> _categoryConfigs = {
-  'link': _CategoryConfig(
+  'link': const _CategoryConfig(
     title: 'Saved Links',
     icon: Icons.link,
-    lightBg: const Color(0xFFFEB196),
-    darkBg: const Color(0xFF3D2518),
-    lightIcon: const Color(0xFF79422D),
-    darkIcon: const Color(0xFFFEB196),
-    sampleItems: const [
+    lightBg: Color(0xFFFEB196),
+    darkBg: Color(0xFF3D2518),
+    lightIcon: Color(0xFF79422D),
+    darkIcon: Color(0xFFFEB196),
+    sampleItems: [
       _SampleItem(title: 'Flutter Documentation', subtitle: 'flutter.dev • Saved 2 days ago', icon: Icons.language),
       _SampleItem(title: 'GitHub Repository — Drop Vault', subtitle: 'github.com • Saved today', icon: Icons.code),
       _SampleItem(title: 'UI Design Inspiration', subtitle: 'dribbble.com • Saved 1 week ago', icon: Icons.palette),
@@ -55,14 +56,14 @@ final Map<String, _CategoryConfig> _categoryConfigs = {
       _SampleItem(title: 'Stack Overflow — GoRouter Help', subtitle: 'stackoverflow.com • Saved 1 week ago', icon: Icons.question_answer),
     ],
   ),
-  'note': _CategoryConfig(
+  'note': const _CategoryConfig(
     title: 'Saved Notes',
     icon: Icons.edit_note,
-    lightBg: const Color(0xFFEEDBFF),
-    darkBg: const Color(0xFF2A1845),
-    lightIcon: const Color(0xFF270B46),
-    darkIcon: const Color(0xFFD9B9FD),
-    sampleItems: const [
+    lightBg: Color(0xFFEEDBFF),
+    darkBg: Color(0xFF2A1845),
+    lightIcon: Color(0xFF270B46),
+    darkIcon: Color(0xFFD9B9FD),
+    sampleItems: [
       _SampleItem(title: 'Meeting Notes — Sprint Planning', subtitle: 'Last edited 2 hours ago', icon: Icons.groups),
       _SampleItem(title: 'Personal Journal — June 2026', subtitle: 'Last edited yesterday', icon: Icons.book),
       _SampleItem(title: 'Study Notes — System Design', subtitle: 'Last edited 3 days ago', icon: Icons.school),
@@ -70,14 +71,14 @@ final Map<String, _CategoryConfig> _categoryConfigs = {
       _SampleItem(title: 'Recipe Collection', subtitle: 'Last edited 1 week ago', icon: Icons.restaurant),
     ],
   ),
-  'file': _CategoryConfig(
+  'file': const _CategoryConfig(
     title: 'Saved Files',
     icon: Icons.upload_file,
-    lightBg: const Color(0xFFD6E8FF),
-    darkBg: const Color(0xFF1A2538),
-    lightIcon: const Color(0xFF1B4A7D),
-    darkIcon: const Color(0xFF8CB4E8),
-    sampleItems: const [
+    lightBg: Color(0xFFD6E8FF),
+    darkBg: Color(0xFF1A2538),
+    lightIcon: Color(0xFF1B4A7D),
+    darkIcon: Color(0xFF8CB4E8),
+    sampleItems: [
       _SampleItem(title: 'Q3 Financial Report.pdf', subtitle: '4.2 MB • Uploaded 2 hours ago', icon: Icons.picture_as_pdf),
       _SampleItem(title: 'Project Proposal.docx', subtitle: '1.8 MB • Uploaded yesterday', icon: Icons.description),
       _SampleItem(title: 'Presentation — Q4 Goals.pptx', subtitle: '12.5 MB • Uploaded 3 days ago', icon: Icons.slideshow),
@@ -85,14 +86,14 @@ final Map<String, _CategoryConfig> _categoryConfigs = {
       _SampleItem(title: 'Resume_2026_v3.pdf', subtitle: '256 KB • Uploaded 2 weeks ago', icon: Icons.picture_as_pdf),
     ],
   ),
-  'image': _CategoryConfig(
+  'image': const _CategoryConfig(
     title: 'Saved Images',
     icon: Icons.image,
-    lightBg: const Color(0xFFFFDAD6),
-    darkBg: const Color(0xFF3A1816),
-    lightIcon: const Color(0xFF390B09),
-    darkIcon: const Color(0xFFFFB4AB),
-    sampleItems: const [
+    lightBg: Color(0xFFFFDAD6),
+    darkBg: Color(0xFF3A1816),
+    lightIcon: Color(0xFF390B09),
+    darkIcon: Color(0xFFFFB4AB),
+    sampleItems: [
       _SampleItem(title: 'Mountain_Retreat_Header.jpg', subtitle: '12 MB • Uploaded today', icon: Icons.landscape),
       _SampleItem(title: 'App Screenshot — Dashboard.png', subtitle: '2.1 MB • Saved 2 days ago', icon: Icons.screenshot),
       _SampleItem(title: 'Design Reference — Color Palette', subtitle: '800 KB • Saved 1 week ago', icon: Icons.color_lens),
@@ -100,14 +101,14 @@ final Map<String, _CategoryConfig> _categoryConfigs = {
       _SampleItem(title: 'Wireframe Sketches.png', subtitle: '3.2 MB • Saved 3 days ago', icon: Icons.draw),
     ],
   ),
-  'all': _CategoryConfig(
+  'all': const _CategoryConfig(
     title: 'All Items',
     icon: Icons.all_inbox,
-    lightBg: const Color(0xFFEEDBFF),
-    darkBg: const Color(0xFF2A1845),
-    lightIcon: const Color(0xFF270B46),
-    darkIcon: const Color(0xFFD9B9FD),
-    sampleItems: const [
+    lightBg: Color(0xFFEEDBFF),
+    darkBg: Color(0xFF2A1845),
+    lightIcon: Color(0xFF270B46),
+    darkIcon: Color(0xFFD9B9FD),
+    sampleItems: [
       _SampleItem(title: 'GitHub Repository — Drop Vault', subtitle: 'github.com • Saved today', icon: Icons.code),
       _SampleItem(title: 'Meeting Notes — Sprint Planning', subtitle: 'Last edited 2 hours ago', icon: Icons.groups),
       _SampleItem(title: 'Q3 Financial Report.pdf', subtitle: '4.2 MB • Uploaded 2 hours ago', icon: Icons.picture_as_pdf),
@@ -183,16 +184,10 @@ class FilteredItemsScreen extends ConsumerWidget {
         break;
     }
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        context.go('/main/dashboard');
-      },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: CustomScrollView(
-        slivers: [
+    final isWide = MediaQuery.of(context).size.width >= 900;
+
+    Widget bodyContent = CustomScrollView(
+      slivers: [
           // --- Collapsing App Bar with category header ---
           SliverAppBar(
             expandedHeight: 200,
@@ -203,7 +198,7 @@ class FilteredItemsScreen extends ConsumerWidget {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.arrow_back, color: onSurface, size: 20),
@@ -225,7 +220,7 @@ class FilteredItemsScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: bgColor.withOpacity(0.3),
+                            color: bgColor.withValues(alpha: 0.3),
                             blurRadius: 16,
                             offset: const Offset(0, 8),
                           ),
@@ -284,7 +279,7 @@ class FilteredItemsScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+                      color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -340,6 +335,7 @@ class FilteredItemsScreen extends ConsumerWidget {
                       child: GestureDetector(
                         onTap: () => CollectionItemsScreen.openItemDirectly(context, ref, item),
                         onLongPress: () => CollectionItemsScreen.showItemLongPressBottomSheet(context, ref, item),
+                        onSecondaryTapDown: (details) => CollectionItemsScreen.showItemContextMenu(context, ref, item, details.globalPosition),
                         child: _buildItemTile(
                           context,
                           title: item.title,
@@ -370,10 +366,34 @@ class FilteredItemsScreen extends ConsumerWidget {
               ),
             ),
         ],
+      );
+
+    if (isWide) {
+      bodyContent = Row(
+        children: [
+          const DesktopSidebar(),
+          VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: isDark ? const Color(0x14FFFFFF) : Colors.black.withValues(alpha: 0.05),
+          ),
+          Expanded(child: bodyContent),
+        ],
+      );
+    }
+
+    return PopScope(
+      canPop: isWide,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.go('/main/dashboard');
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: bodyContent,
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildItemTile(
     BuildContext context, {

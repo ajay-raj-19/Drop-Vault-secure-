@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/auth_repository.dart';
 import '../../domain/auth_state.dart';
 import '../../data/mock_auth_service.dart';
+import '../../data/supabase_auth_repository.dart';
 
-import '../../../../core/providers/providers.dart' show sharedPreferencesProvider;
+import '../../../../core/providers/providers.dart' show sharedPreferencesProvider, supabaseServiceProvider;
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  return MockAuthService(prefs);
+  final supabaseService = ref.watch(supabaseServiceProvider);
+  if (supabaseService.isInitialized) {
+    return SupabaseAuthRepository(prefs, supabaseService.client);
+  } else {
+    return MockAuthService(prefs);
+  }
 });
 
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

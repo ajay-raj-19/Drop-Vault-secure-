@@ -13,7 +13,7 @@ class CustomTextField extends StatelessWidget {
   final ValueChanged<String>? onFieldSubmitted;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     required this.label,
     required this.prefixIcon,
     required this.hintText,
@@ -23,7 +23,7 @@ class CustomTextField extends StatelessWidget {
     this.validator,
     this.textInputAction,
     this.onFieldSubmitted,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +50,7 @@ class CustomTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              color: AppColors.outline.withOpacity(0.6),
+              color: AppColors.outline.withValues(alpha: 0.6),
             ),
             prefixIcon: Icon(prefixIcon, color: AppColors.outline),
             filled: true,

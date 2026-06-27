@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_colors.dart';
 
 class TermsOfServicePage extends StatelessWidget {
   const TermsOfServicePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final background = Theme.of(context).scaffoldBackgroundColor;
     final primary = Theme.of(context).colorScheme.primary;
     final onSurface = context.appColors.primaryText;
@@ -27,8 +25,8 @@ class TermsOfServicePage extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
               decoration: BoxDecoration(
-                color: background.withOpacity(0.8),
-                border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+                color: background.withValues(alpha: 0.8),
+                border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SafeArea(

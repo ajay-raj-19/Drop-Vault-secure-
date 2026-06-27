@@ -153,25 +153,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (email != null && email.isNotEmpty) {
         final registered = await ref.read(authStateProvider.notifier).isEmailRegistered(email);
         if (registered) {
+          await ref.read(authStateProvider.notifier).signInWithGoogle(email, '');
           if (mounted) {
             setState(() {
               _isLoading = false;
             });
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: const Text('Account Already Exists', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                content: const Text('Account already exists. Please login using your password.', style: TextStyle(color: Colors.black)),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
           }
         } else {
           if (mounted) {
@@ -221,7 +207,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFEB196).withOpacity(0.2), // secondary-container
+                color: const Color(0xFFFEB196).withValues(alpha: 0.2), // secondary-container
               ),
             ),
           ),
@@ -233,7 +219,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFEEDBFF).withOpacity(0.2), // primary-fixed
+                color: const Color(0xFFEEDBFF).withValues(alpha: 0.2), // primary-fixed
               ),
             ),
           ),
@@ -406,7 +392,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                           : null,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF6D528E).withOpacity(0.3),
+                                      color: const Color(0xFF6D528E).withValues(alpha: 0.3),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     )
@@ -455,7 +441,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF4A454F).withOpacity(0.7),
+                                      color: const Color(0xFF4A454F).withValues(alpha: 0.7),
                                     ),
                                   ),
                                 ),
@@ -475,13 +461,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               label: Text(
                                 'Continue with Google',
                                 style: TextStyle(
-                                  color: const Color(0xFF1D1B1F).withOpacity(0.9),
+                                  color: const Color(0xFF1D1B1F).withValues(alpha: 0.9),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.white.withOpacity(0.5),
+                                backgroundColor: Colors.white.withValues(alpha: 0.5),
                                 minimumSize: const Size(double.infinity, 56),
                                 side: const BorderSide(color: Colors.black12),
                                 shape: RoundedRectangleBorder(

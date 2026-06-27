@@ -1,8 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_card.dart';
@@ -210,7 +208,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     color: isSelected ? primary : surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: isSelected 
-                        ? [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4, offset: const Offset(0, 2))]
+                        ? [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2))]
                         : [],
                   ),
                   child: Text(
@@ -256,7 +254,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ],
           ),
           const SizedBox(height: 8),
-          ...recentSearches.map((query) => _buildRecentSearchItem(query)).toList(),
+          ...recentSearches.map((query) => _buildRecentSearchItem(query)),
         ],
       ),
     );
@@ -316,11 +314,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           textBaseline: TextBaseline.alphabetic,
           children: [
             Text('Search Results ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: onSurface)),
-            Text('(${results.length})', style: TextStyle(fontSize: 20, color: onSurfaceVariant.withOpacity(0.8))),
+            Text('(${results.length})', style: TextStyle(fontSize: 20, color: onSurfaceVariant.withValues(alpha: 0.8))),
           ],
         ),
         const SizedBox(height: 16),
-        ...results.map((res) => _buildResultItemRow(res)).toList(),
+        ...results.map((res) => _buildResultItemRow(res)),
       ],
     );
   }
@@ -388,7 +386,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(iconData, color: iconColor, size: 22),
@@ -414,7 +412,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: onSurfaceVariant.withOpacity(0.7),
+                        color: onSurfaceVariant.withValues(alpha: 0.7),
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -595,8 +593,8 @@ class _AnimatedSearchBarState extends ConsumerState<_AnimatedSearchBar> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
           boxShadow: _isFocused 
-              ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))] 
-              : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10))] 
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 5)],
         ),
         child: FocusScope(
           child: Focus(

@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/widgets/brand_logo.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,7 +11,7 @@ import 'widgets/onboarding_dots.dart';
 
 class DropVaultOnboardingScreen extends StatefulWidget {
   final PageController controller;
-  const DropVaultOnboardingScreen({Key? key, required this.controller}) : super(key: key);
+  const DropVaultOnboardingScreen({super.key, required this.controller});
 
   @override
   State<DropVaultOnboardingScreen> createState() => _DropVaultOnboardingScreenState();
@@ -56,7 +55,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xfffeb190).withOpacity(0.15),
+                      const Color(0xfffeb190).withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
                   ),
@@ -74,7 +73,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xffd9b9fd).withOpacity(0.15),
+                      const Color(0xffd9b9fd).withValues(alpha: 0.15),
                       Colors.transparent,
                     ],
                   ),
@@ -151,7 +150,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                       height: 128,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: const Color(0xfffeb196).withOpacity(0.2),
+                                        color: const Color(0xfffeb196).withValues(alpha: 0.2),
                                       ),
                                       child: BackdropFilter(
                                         filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
@@ -167,7 +166,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                       height: 160,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: const Color(0xffeedbff).withOpacity(0.2),
+                                        color: const Color(0xffeedbff).withValues(alpha: 0.2),
                                       ),
                                       child: BackdropFilter(
                                         filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
@@ -184,7 +183,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                     parallaxY: _moveY * 0.5,
                                     child: Transform(
                                       transform: Matrix4.identity()
-                                        ..translate(-20.0, 20.0)
+                                        ..translateByDouble(-20.0, 20.0, 0.0, 1.0)
                                         ..rotateZ(-0.1047), // -6 degrees in radians
                                       alignment: Alignment.center,
                                       child: GlassCard(
@@ -193,7 +192,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                         padding: const EdgeInsets.all(24),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: const Color(0xff8a4f39).withOpacity(0.1),
+                                            color: const Color(0xff8a4f39).withValues(alpha: 0.1),
                                             blurRadius: 30,
                                             offset: const Offset(0, 10),
                                           )
@@ -210,7 +209,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     shape: BoxShape.circle,
-                                                    color: const Color(0xfffeb196).withOpacity(0.2),
+                                                    color: const Color(0xfffeb196).withValues(alpha: 0.2),
                                                   ),
                                                   child: const Icon(
                                                     Icons.fitness_center,
@@ -221,7 +220,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                                   decoration: BoxDecoration(
                                                     borderRadius: BorderRadius.circular(9999),
-                                                    color: const Color(0xfffeb196).withOpacity(0.1),
+                                                    color: const Color(0xfffeb196).withValues(alpha: 0.1),
                                                   ),
                                                   child: const Text(
                                                     '#lifestyle',
@@ -234,9 +233,9 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                                 ),
                                               ],
                                             ),
-                                            Column(
+                                            const Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: const [
+                                              children: [
                                                 Text(
                                                   'Fitness',
                                                   style: TextStyle(
@@ -268,7 +267,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                     parallaxY: _moveY * 1.0,
                                     child: Transform(
                                       transform: Matrix4.identity()
-                                        ..translate(20.0, -20.0)
+                                        ..translateByDouble(20.0, -20.0, 0.0, 1.0)
                                         ..rotateZ(0.0523), // 3 degrees in radians
                                       alignment: Alignment.center,
                                       child: GlassCard(
@@ -277,7 +276,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                         padding: EdgeInsets.zero,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: const Color(0xff8a4f39).withOpacity(0.1),
+                                            color: const Color(0xff8a4f39).withValues(alpha: 0.1),
                                             blurRadius: 30,
                                             offset: const Offset(0, 10),
                                           )
@@ -372,7 +371,7 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   elevation: 10,
-                                  shadowColor: const Color(0xff8a4f39).withOpacity(0.2),
+                                  shadowColor: const Color(0xff8a4f39).withValues(alpha: 0.2),
                                   padding: EdgeInsets.zero,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9999)),
                                 ),
@@ -383,9 +382,9 @@ class _DropVaultOnboardingScreenState extends State<DropVaultOnboardingScreen> {
                                   ),
                                   child: Container(
                                     alignment: Alignment.center,
-                                    child: Row(
+                                    child: const Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: const [
+                                      children: [
                                         Text(
                                           'Next',
                                           style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),

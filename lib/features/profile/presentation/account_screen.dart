@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -190,8 +189,8 @@ class _AccountPageState extends ConsumerState<AccountPage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -204,7 +203,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                         icon: Icon(Icons.arrow_back, color: primary),
                         onPressed: () => context.pop(),
                         style: IconButton.styleFrom(
-                          hoverColor: onSurfaceVariant.withOpacity(0.08),
+                          hoverColor: onSurfaceVariant.withValues(alpha: 0.08),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -218,7 +217,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                     icon: Icon(Icons.settings, color: primary),
                     onPressed: () => context.go('/main/profile/settings'),
                     style: IconButton.styleFrom(
-                      hoverColor: onSurfaceVariant.withOpacity(0.08),
+                      hoverColor: onSurfaceVariant.withValues(alpha: 0.08),
                     ),
                   ),
                 ],
@@ -252,7 +251,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                     gradient: accentGradient,
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: const Icon(Icons.edit, color: Colors.white, size: 20),
@@ -367,7 +366,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            border: showDivider ? Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.1))) : null,
+            border: showDivider ? Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.1))) : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -450,8 +449,8 @@ class _AccountPageState extends ConsumerState<AccountPage> {
             child: Container(
               padding: const EdgeInsets.all(24.0),
               decoration: BoxDecoration(
-                color: errorContainer.withOpacity(0.1),
-                border: Border.all(color: error.withOpacity(0.2)),
+                color: errorContainer.withValues(alpha: 0.1),
+                border: Border.all(color: error.withValues(alpha: 0.2)),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -467,7 +466,7 @@ class _AccountPageState extends ConsumerState<AccountPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: error.withOpacity(0.1),
+                      color: error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Text('PERMANENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),

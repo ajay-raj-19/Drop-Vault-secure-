@@ -9,14 +9,14 @@ class FloatingAnim extends StatefulWidget {
   final double floatDepth;
 
   const FloatingAnim({
-    Key? key,
+    super.key,
     required this.child,
     this.duration = const Duration(seconds: 6),
     this.delay = Duration.zero,
     this.parallaxX = 0.0,
     this.parallaxY = 0.0,
     this.floatDepth = -15.0,
-  }) : super(key: key);
+  });
 
   @override
   State<FloatingAnim> createState() => _FloatingAnimState();

@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,7 +12,8 @@ import '../../../core/providers/providers.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 class AddItemPage extends ConsumerStatefulWidget {
-  const AddItemPage({super.key});
+  final List<File>? initialFiles;
+  const AddItemPage({super.key, this.initialFiles});
 
   @override
   ConsumerState<AddItemPage> createState() => _AddItemPageState();
@@ -44,14 +47,8 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
   String? _selectedCollection;
   String _selectedLinkCategory = 'GitHub';
 
-  // Uploaded file metadata
-  String? _selectedFilePath;
-  String? _selectedFileName;
-  String? _selectedFileSizeStr;
-
-  // Selected image metadata
-  String? _selectedImagePath;
-  String? _selectedImageName;
+  // Multi-file selection list
+  final List<File> _selectedFiles = [];
 
   // Reminder selections
   String _activeReminderOption = 'tomorrow';
@@ -65,6 +62,22 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
     super.initState();
     // Default reminder is set to tomorrow
     _selectedReminderDate = DateTime.now().add(const Duration(days: 1));
+
+    // Handle files passed on navigate (e.g. from drag & drop)
+    if (widget.initialFiles != null && widget.initialFiles!.isNotEmpty) {
+      _selectedFiles.addAll(widget.initialFiles!);
+      final firstFile = widget.initialFiles!.first;
+      final fileName = firstFile.path.split(Platform.pathSeparator).last;
+      
+      _titleController.text = fileName;
+
+      final extension = fileName.split('.').last.toLowerCase();
+      if (['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(extension)) {
+        _selectedType = 'image';
+      } else {
+        _selectedType = 'file';
+      }
+    }
   }
 
   @override
@@ -96,25 +109,26 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'zip', 'ppt', 'pptx'],
+        allowMultiple: true,
       );
-      if (result != null && result.files.single.path != null) {
-        final file = result.files.single;
-        if (file.size > 10 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maximum file size is 10 MB'), backgroundColor: Colors.red),
-          );
-        } else {
-          setState(() {
-            _selectedFilePath = file.path;
-            _selectedFileName = file.name;
-            _selectedFileSizeStr = '${(file.size / (1024 * 1024)).toStringAsFixed(1)} MB';
-            if (_titleController.text.trim().isEmpty) {
-              _titleController.text = file.name;
+      if (!mounted) return;
+      if (result != null) {
+        setState(() {
+          for (final file in result.files) {
+            if (file.path != null) {
+              final pickedFile = File(file.path!);
+              if (!_selectedFiles.any((f) => f.path == pickedFile.path)) {
+                _selectedFiles.add(pickedFile);
+              }
             }
-          });
-        }
+          }
+          if (_titleController.text.trim().isEmpty && _selectedFiles.isNotEmpty) {
+            _titleController.text = _selectedFiles.first.path.split(Platform.pathSeparator).last;
+          }
+        });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error picking file'), backgroundColor: Colors.red),
       );
@@ -122,6 +136,38 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
   }
 
   Future<void> _pickImage() async {
+    if (!kIsWeb && Platform.isWindows) {
+      try {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          allowMultiple: true,
+        );
+        if (!mounted) return;
+        if (result != null) {
+          setState(() {
+            for (final file in result.files) {
+              if (file.path != null) {
+                final pickedFile = File(file.path!);
+                if (!_selectedFiles.any((f) => f.path == pickedFile.path)) {
+                  _selectedFiles.add(pickedFile);
+                }
+              }
+            }
+            _selectedType = 'image';
+            if (_titleController.text.trim().isEmpty && _selectedFiles.isNotEmpty) {
+              _titleController.text = _selectedFiles.first.path.split(Platform.pathSeparator).last;
+            }
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error picking image'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
     final ImagePicker picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -153,23 +199,28 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
     if (source != null) {
       try {
         final XFile? image = await picker.pickImage(source: source);
+        if (!mounted) return;
         if (image != null) {
           final size = await image.length();
+          if (!mounted) return;
           if (size > 10 * 1024 * 1024) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Maximum image size is 10 MB'), backgroundColor: Colors.red),
             );
           } else {
             setState(() {
-              _selectedImagePath = image.path;
-              _selectedImageName = image.name;
-              if (_titleController.text.trim().isEmpty) {
-                _titleController.text = image.name;
+              final pickedFile = File(image.path);
+              if (!_selectedFiles.any((f) => f.path == pickedFile.path)) {
+                _selectedFiles.add(pickedFile);
+              }
+              if (_titleController.text.trim().isEmpty && _selectedFiles.isNotEmpty) {
+                _titleController.text = _selectedFiles.first.path.split(Platform.pathSeparator).last;
               }
             });
           }
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error picking image'), backgroundColor: Colors.red),
         );
@@ -238,41 +289,47 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= 900;
     final isDesktop = MediaQuery.of(context).size.width >= 768;
     final collections = ref.watch(collectionProvider);
 
-    return Scaffold(
-      backgroundColor: background,
-      body: Stack(
-        children: [
-          // Background Overlay
-          Container(color: primary.withOpacity(0.03)),
-
-          // Main Layout
-          Row(
-            children: [
-              if (isDesktop) _buildDesktopSideNav(),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildAppBar(isDesktop),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 672), // max-w-2xl
-                            child: _buildMainContent(collections),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): _handleSaveItem,
+      },
+      child: Scaffold(
+        backgroundColor: background,
+        body: Stack(
+          children: [
+            // Background Overlay
+            Container(color: primary.withValues(alpha: 0.03)),
+  
+            // Main Layout
+            Row(
+              children: [
+                if (isDesktop && !isWide) _buildDesktopSideNav(),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildAppBar(isDesktop),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 672), // max-w-2xl
+                              child: _buildMainContent(collections),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -293,7 +350,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => context.go('/main/dashboard'),
                 style: IconButton.styleFrom(
-                  backgroundColor: onSurfaceVariant.withOpacity(0.1),
+                  backgroundColor: onSurfaceVariant.withValues(alpha: 0.1),
                   foregroundColor: onSurface,
                 ),
               ),
@@ -325,7 +382,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
           style: TextStyle(color: onSurface),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(fontSize: 14, color: onSurfaceVariant.withOpacity(0.6)),
+            hintStyle: TextStyle(fontSize: 14, color: onSurfaceVariant.withValues(alpha: 0.6)),
           ),
         ),
       ],
@@ -344,7 +401,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
         border: Theme.of(context).brightness == Brightness.dark ? Border.all(color: outlineVariant) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
+            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -439,7 +496,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
         decoration: BoxDecoration(
           color: isSelected ? primaryFixed : surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? Colors.transparent : outlineVariant.withOpacity(0.5)),
+          border: Border.all(color: isSelected ? Colors.transparent : outlineVariant.withValues(alpha: 0.5)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -464,7 +521,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
           height: 56,
           padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
-            color: secondary.withOpacity(0.05),
+            color: secondary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(28),
           ),
           child: DropdownButtonHideUnderline(
@@ -497,55 +554,98 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('SELECT FILE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1, color: onSurfaceVariant)),
+        Text('SELECT FILES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1, color: onSurfaceVariant)),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickFile,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: secondary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: outlineVariant.withOpacity(0.5)),
+        if (_selectedFiles.isEmpty)
+          InkWell(
+            onTap: _pickFile,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: secondary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.cloud_upload_outlined, size: 48, color: secondary),
+                  const SizedBox(height: 12),
+                  Text('Select files from storage', style: TextStyle(fontSize: 14, color: onSurfaceVariant)),
+                  const SizedBox(height: 4),
+                  Text('PDF, DOC, DOCX, TXT, ZIP, PPT, PPTX (Max 10MB)', style: TextStyle(fontSize: 11, color: outline)),
+                ],
+              ),
             ),
-            child: _selectedFilePath == null
-                ? Column(
-                    children: [
-                      Icon(Icons.cloud_upload_outlined, size: 48, color: secondary),
-                      const SizedBox(height: 12),
-                      Text('Select a file from device storage', style: TextStyle(fontSize: 14, color: onSurfaceVariant)),
-                      const SizedBox(height: 4),
-                      Text('Supported formats: PDF, DOC, DOCX, TXT, ZIP, PPT, PPTX (Max 10MB)', style: TextStyle(fontSize: 11, color: outline)),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: secondary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+          )
+        else
+          Column(
+            children: [
+              ..._selectedFiles.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final file = entry.value;
+                final fileName = file.path.split(Platform.pathSeparator).last;
+                final sizeStr = file.existsSync() 
+                    ? '${(file.lengthSync() / (1024 * 1024)).toStringAsFixed(1)} MB' 
+                    : '';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: secondary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: secondary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.insert_drive_file, color: secondary, size: 24),
                         ),
-                        child: Icon(Icons.insert_drive_file, color: secondary, size: 32),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_selectedFileName ?? 'File', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            Text(_selectedFileSizeStr ?? '', style: TextStyle(fontSize: 12, color: onSurfaceVariant)),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(fileName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              if (sizeStr.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(sizeStr, style: TextStyle(fontSize: 11, color: onSurfaceVariant)),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const Icon(Icons.check_circle, color: Colors.green, size: 24),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _selectedFiles.removeAt(idx);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
+                );
+              }),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _pickFile,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add More Files'),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              ),
+            ],
           ),
-        ),
       ],
     );
   }
@@ -554,62 +654,90 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('SELECT IMAGE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1, color: onSurfaceVariant)),
+        Text('SELECT IMAGES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1, color: onSurfaceVariant)),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickImage,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: secondary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: outlineVariant.withOpacity(0.5)),
+        if (_selectedFiles.isEmpty)
+          InkWell(
+            onTap: _pickImage,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: secondary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined, size: 48, color: secondary),
+                  const SizedBox(height: 12),
+                  Text('Select images', style: TextStyle(fontSize: 14, color: onSurfaceVariant)),
+                  const SizedBox(height: 4),
+                  Text('PNG, JPG, JPEG, WEBP, GIF (Max 10MB)', style: TextStyle(fontSize: 11, color: outline)),
+                ],
+              ),
             ),
-            child: _selectedImagePath == null
-                ? Column(
-                    children: [
-                      Icon(Icons.add_photo_alternate_outlined, size: 48, color: secondary),
-                      const SizedBox(height: 12),
-                      Text('Select an image source', style: TextStyle(fontSize: 14, color: onSurfaceVariant)),
-                      const SizedBox(height: 4),
-                      Text('Camera or Gallery (Max 10MB)', style: TextStyle(fontSize: 11, color: outline)),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: outlineVariant.withOpacity(0.3)),
-                          image: DecorationImage(
-                            image: FileImage(File(_selectedImagePath!)),
-                            fit: BoxFit.cover,
+          )
+        else
+          Column(
+            children: [
+              ..._selectedFiles.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final file = entry.value;
+                final fileName = file.path.split(Platform.pathSeparator).last;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: secondary.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
+                            image: DecorationImage(
+                              image: FileImage(file),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_selectedImageName ?? 'Image', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            const Text('Image selected successfully', style: TextStyle(fontSize: 12, color: Colors.green)),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(fileName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _pickImage,
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              _selectedFiles.removeAt(idx);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
+                );
+              }),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add More Images'),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              ),
+            ],
           ),
-        ),
       ],
     );
   }
@@ -630,7 +758,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
                 height: 56,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
-                  color: secondary.withOpacity(0.05),
+                  color: secondary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -659,7 +787,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
               icon: const Icon(Icons.create_new_folder),
               onPressed: _showInlineCreateCollectionDialog,
               style: IconButton.styleFrom(
-                backgroundColor: secondary.withOpacity(0.05),
+                backgroundColor: secondary.withValues(alpha: 0.05),
                 foregroundColor: primary,
                 padding: const EdgeInsets.all(16),
               ),
@@ -680,9 +808,9 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
           constraints: const BoxConstraints(minHeight: 56),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: secondary.withOpacity(0.05),
+            color: secondary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: outlineVariant.withOpacity(0.5)),
+            border: Border.all(color: outlineVariant.withValues(alpha: 0.5)),
           ),
           child: Wrap(
             spacing: 8,
@@ -714,7 +842,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
                   style: TextStyle(color: onSurface),
                   decoration: InputDecoration(
                     hintText: 'Type and enter...',
-                    hintStyle: TextStyle(fontSize: 14, color: onSurfaceVariant.withOpacity(0.6)),
+                    hintStyle: TextStyle(fontSize: 14, color: onSurfaceVariant.withValues(alpha: 0.6)),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
@@ -757,7 +885,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
                   });
                 },
                 activeTrackColor: primary,
-                activeColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+                activeThumbColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: outlineVariant,
               ),
@@ -810,7 +938,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: surfaceContainerLowest,
-          border: Border.all(color: isSelected ? primary.withOpacity(0.2) : outlineVariant.withOpacity(0.3)),
+          border: Border.all(color: isSelected ? primary.withValues(alpha: 0.2) : outlineVariant.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -854,7 +982,7 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
               ? []
               : [
                   BoxShadow(
-                    color: primary.withOpacity(0.2),
+                    color: primary.withValues(alpha: 0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -901,62 +1029,56 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
 
     String finalContent = '';
     String? finalCategory;
+    final isFileOrImage = _selectedType == 'file' || _selectedType == 'image';
 
-    if (_selectedType == 'link') {
-      final rawUrl = _contentController.text.trim();
-      if (rawUrl.isEmpty) {
+    if (isFileOrImage) {
+      if (_selectedFiles.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a URL'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Please select at least one $_selectedType'), backgroundColor: Colors.red),
         );
         return;
       }
-
-      // Friendly validation and parsing of URL
-      var parsedUrl = rawUrl;
-      if (!parsedUrl.startsWith('http://') && !parsedUrl.startsWith('https://')) {
-        parsedUrl = 'https://$parsedUrl';
-      }
-      final uri = Uri.tryParse(parsedUrl);
-      if (uri == null || !uri.host.contains('.')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid URL'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      finalContent = parsedUrl;
-
-      // Category Selection
-      if (_selectedLinkCategory == 'Others') {
-        final customCat = _newCategoryController.text.trim();
-        if (customCat.isEmpty) {
+    } else {
+      if (_selectedType == 'link') {
+        final rawUrl = _contentController.text.trim();
+        if (rawUrl.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please enter a custom category name'), backgroundColor: Colors.red),
+            const SnackBar(content: Text('Please enter a URL'), backgroundColor: Colors.red),
           );
           return;
         }
-        await ref.read(linkCategoriesProvider.notifier).addCategory(customCat);
-        finalCategory = customCat;
-      } else {
-        finalCategory = _selectedLinkCategory;
+
+        // Friendly validation and parsing of URL
+        var parsedUrl = rawUrl;
+        if (!parsedUrl.startsWith('http://') && !parsedUrl.startsWith('https://')) {
+          parsedUrl = 'https://$parsedUrl';
+        }
+        final uri = Uri.tryParse(parsedUrl);
+        if (uri == null || !uri.host.contains('.')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a valid URL'), backgroundColor: Colors.red),
+          );
+          return;
+        }
+        finalContent = parsedUrl;
+
+        // Category Selection
+        if (_selectedLinkCategory == 'Others') {
+          final customCat = _newCategoryController.text.trim();
+          if (customCat.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please enter a custom category name'), backgroundColor: Colors.red),
+            );
+            return;
+          }
+          await ref.read(linkCategoriesProvider.notifier).addCategory(customCat);
+          finalCategory = customCat;
+        } else {
+          finalCategory = _selectedLinkCategory;
+        }
+      } else if (_selectedType == 'note') {
+        finalContent = _contentController.text.trim();
       }
-    } else if (_selectedType == 'note') {
-      finalContent = _contentController.text.trim();
-    } else if (_selectedType == 'file') {
-      if (_selectedFilePath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a file'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      finalContent = _selectedFilePath!;
-    } else if (_selectedType == 'image') {
-      if (_selectedImagePath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an image'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      finalContent = _selectedImagePath!;
     }
 
     setState(() {
@@ -964,35 +1086,70 @@ class _AddItemPageState extends ConsumerState<AddItemPage> {
     });
 
     try {
-      final newItem = VaultItem(
-        id: 'item-${DateTime.now().millisecondsSinceEpoch}',
-        title: title,
-        type: _selectedType,
-        content: finalContent,
-        collectionName: _selectedCollection ?? 'Personal Research',
-        createdAt: DateTime.now(),
-        tags: List<String>.from(_tags),
-        category: finalCategory,
-      );
+      if (isFileOrImage) {
+        // Save multiple files/images
+        for (var i = 0; i < _selectedFiles.length; i++) {
+          final file = _selectedFiles[i];
+          final fileTitle = i == 0 ? title : '$title ($i)';
 
-      // Save item
-      await ref.read(vaultProvider.notifier).addItem(newItem);
+          final newItem = VaultItem(
+            id: 'item-${DateTime.now().millisecondsSinceEpoch}-$i',
+            title: fileTitle,
+            type: _selectedType,
+            content: file.path,
+            collectionName: _selectedCollection ?? 'Personal Research',
+            createdAt: DateTime.now(),
+            tags: List<String>.from(_tags),
+            category: null,
+          );
 
-      // Save reminder if enabled
-      if (_isReminderEnabled && _selectedReminderDate != null) {
-        final newReminder = Reminder(
-          id: 'rem-${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Review $title',
+          // Save item
+          await ref.read(vaultProvider.notifier).addItem(newItem);
+
+          // Save reminder if enabled
+          if (_isReminderEnabled && _selectedReminderDate != null) {
+            final newReminder = Reminder(
+              id: 'rem-${DateTime.now().millisecondsSinceEpoch}-$i',
+              title: 'Review $fileTitle',
+              collectionName: _selectedCollection ?? 'Personal Research',
+              dateTime: _selectedReminderDate!,
+              itemId: newItem.id,
+            );
+            await ref.read(reminderProvider.notifier).addReminder(newReminder);
+          }
+        }
+      } else {
+        // Save single link/note
+        final newItem = VaultItem(
+          id: 'item-${DateTime.now().millisecondsSinceEpoch}',
+          title: title,
+          type: _selectedType,
+          content: finalContent,
           collectionName: _selectedCollection ?? 'Personal Research',
-          dateTime: _selectedReminderDate!,
-          itemId: newItem.id,
+          createdAt: DateTime.now(),
+          tags: List<String>.from(_tags),
+          category: finalCategory,
         );
-        await ref.read(reminderProvider.notifier).addReminder(newReminder);
+
+        // Save item
+        await ref.read(vaultProvider.notifier).addItem(newItem);
+
+        // Save reminder if enabled
+        if (_isReminderEnabled && _selectedReminderDate != null) {
+          final newReminder = Reminder(
+            id: 'rem-${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Review $title',
+            collectionName: _selectedCollection ?? 'Personal Research',
+            dateTime: _selectedReminderDate!,
+            itemId: newItem.id,
+          );
+          await ref.read(reminderProvider.notifier).addReminder(newReminder);
+        }
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Link Saved Successfully'), backgroundColor: Colors.green),
+          SnackBar(content: Text('${_selectedType.toUpperCase()} Saved Successfully'), backgroundColor: Colors.green),
         );
         context.go('/main/dashboard');
       }

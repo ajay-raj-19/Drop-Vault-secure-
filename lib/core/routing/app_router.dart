@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +29,7 @@ import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/vault/presentation/collection_items_screen.dart';
 import '../../features/vault/presentation/note_viewer_screen.dart';
 import '../../features/backup/presentation/backup_restore_screen.dart';
+import '../../features/vault/presentation/favorites_screen.dart';
 import '../providers/providers.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
@@ -193,7 +195,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/main/add',
-                builder: (context, state) => const AddItemPage(),
+                builder: (context, state) {
+                  final initialFiles = state.extra as List<File>?;
+                  return AddItemPage(initialFiles: initialFiles);
+                },
               ),
             ],
           ),
@@ -251,6 +256,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'about-developer',
                     builder: (context, state) => const AboutDeveloperPage(),
+                  ),
+                  GoRoute(
+                    path: 'favorites',
+                    builder: (context, state) => const FavoritesPage(),
                   ),
                   GoRoute(
                     path: 'backup',

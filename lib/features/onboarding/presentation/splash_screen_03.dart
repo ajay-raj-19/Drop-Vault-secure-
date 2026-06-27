@@ -1,7 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/floating_anim.dart';
@@ -13,10 +11,10 @@ class DropVaultFinalOnboarding extends StatefulWidget {
   final VoidCallback onGetStarted;
 
   const DropVaultFinalOnboarding({
-    Key? key,
+    super.key,
     required this.controller,
     required this.onGetStarted,
-  }) : super(key: key);
+  });
 
   @override
   State<DropVaultFinalOnboarding> createState() => _DropVaultFinalOnboardingState();
@@ -66,7 +64,7 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                                   child: Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: const Color(0xfffeb196).withOpacity(0.1),
+                                      color: const Color(0xfffeb196).withValues(alpha: 0.1),
                                     ),
                                     child: BackdropFilter(
                                       filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
@@ -86,12 +84,12 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                                       color: const Color(0xffede6ec),
                                       borderRadius: BorderRadius.circular(40),
                                       border: Border.all(
-                                        color: const Color(0xff1d1b1f).withOpacity(0.05),
+                                        color: const Color(0xff1d1b1f).withValues(alpha: 0.05),
                                         width: 6,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
+                                          color: Colors.black.withValues(alpha: 0.1),
                                           blurRadius: 20,
                                           offset: const Offset(0, 10),
                                         )
@@ -117,7 +115,7 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                                                 end: Alignment.bottomCenter,
                                                 colors: [
                                                   Colors.transparent,
-                                                  const Color(0xffede6ec).withOpacity(0.4),
+                                                  const Color(0xffede6ec).withValues(alpha: 0.4),
                                                 ],
                                               ),
                                             ),
@@ -143,11 +141,11 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                                           color: const Color(0xffffffff),
                                           borderRadius: BorderRadius.circular(8),
                                           border: Border.all(
-                                            color: const Color(0xffccc4d0).withOpacity(0.3),
+                                            color: const Color(0xffccc4d0).withValues(alpha: 0.3),
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.2),
+                                              color: Colors.black.withValues(alpha: 0.2),
                                               blurRadius: 24,
                                               offset: const Offset(0, 12),
                                             )
@@ -249,9 +247,11 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 curve: Curves.easeOut,
-                                transform: Matrix4.identity()..scale(
+                                transform: Matrix4.identity()..scaleByDouble(
                                   _isButtonPressed ? 0.95 : 1.0,
                                   _isButtonPressed ? 0.95 : 1.0,
+                                  1.0,
+                                  1.0,
                                 ),
                                 transformAlignment: Alignment.center,
                                 height: 56,
@@ -260,15 +260,15 @@ class _DropVaultFinalOnboardingState extends State<DropVaultFinalOnboarding> {
                                   borderRadius: BorderRadius.circular(9999),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xfffeb196).withOpacity(0.2),
+                                      color: const Color(0xfffeb196).withValues(alpha: 0.2),
                                       blurRadius: 15,
                                       offset: const Offset(0, 8),
                                     )
                                   ],
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
+                                  children: [
                                     Text(
                                       'Get Started',
                                       style: TextStyle(

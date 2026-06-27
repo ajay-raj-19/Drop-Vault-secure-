@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:go_router/go_router.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_theme.dart';
+import 'package:desktop_drop/desktop_drop.dart';
+import 'desktop_sidebar.dart';
+import 'desktop_shortcut_wrapper.dart';
 
 class MainLayoutShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainLayoutShell({
-    Key? key,
+    super.key,
     required this.navigationShell,
-  }) : super(key: key);
+  });
 
   @override
   State<MainLayoutShell> createState() => _MainLayoutShellState();
@@ -29,9 +32,80 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 900;
+    final isWindows = !kIsWeb && Platform.isWindows;
+    final showSidebar = isWindows || isWide;
+
+    Widget scaffoldContent = Scaffold(
+      body: showSidebar
+          ? Row(
+              children: [
+                const DesktopSidebar(),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: isDark ? const Color(0x14FFFFFF) : Colors.black.withValues(alpha: 0.05),
+                ),
+                Expanded(
+                  child: widget.navigationShell,
+                ),
+              ],
+            )
+          : widget.navigationShell,
+      bottomNavigationBar: showSidebar
+          ? null
+          : Container(
+              padding: const EdgeInsets.only(bottom: 32, top: 16, left: 16, right: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF18181B) : Theme.of(context).scaffoldBackgroundColor,
+                border: isDark
+                    ? const Border(
+                        top: BorderSide(
+                          color: Color(0x14FFFFFF), // rgba(255,255,255,0.08)
+                          width: 1,
+                        ),
+                      )
+                    : null,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.3)
+                        : const Color(0xFF6D528E).withValues(alpha: 0.1),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  )
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(context, 0, Icons.home, 'Home'),
+                  _buildNavItem(context, 1, Icons.search, 'Search'),
+                  _buildAddFabItem(context, 2),
+                  _buildNavItem(context, 3, Icons.folder_open, 'Vaults'),
+                  _buildNavItem(context, 4, Icons.person, 'Profile'),
+                ],
+              ),
+            ),
+    );
+
+    // Apply global drag and drop and keyboard shortcuts on desktop platforms
+    if (!kIsWeb && Platform.isWindows) {
+      scaffoldContent = DropTarget(
+        onDragDone: (details) {
+          final files = details.files.map((f) => File(f.path)).toList();
+          if (files.isNotEmpty) {
+            context.go('/main/add', extra: files);
+          }
+        },
+        child: DesktopShortcutWrapper(child: scaffoldContent),
+      );
+    }
+
     return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
+      canPop: showSidebar, // Let desktop close directly
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         
         final currentIndex = widget.navigationShell.currentIndex;
@@ -54,45 +128,9 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
           }
         }
       },
-      child: Scaffold(
-        body: widget.navigationShell,
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(bottom: 32, top: 16, left: 16, right: 16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF18181B) : Theme.of(context).scaffoldBackgroundColor,
-          border: isDark
-              ? const Border(
-                  top: BorderSide(
-                    color: Color(0x14FFFFFF), // rgba(255,255,255,0.08)
-                    width: 1,
-                  ),
-                )
-              : null,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          boxShadow: [
-            BoxShadow(
-              color: isDark
-                  ? Colors.black.withOpacity(0.3)
-                  : const Color(0xFF6D528E).withOpacity(0.1),
-              blurRadius: 30,
-              offset: const Offset(0, -10),
-            )
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(context, 0, Icons.home, 'Home'),
-            _buildNavItem(context, 1, Icons.search, 'Search'),
-            _buildAddFabItem(context, 2),
-            _buildNavItem(context, 3, Icons.folder_open, 'Vaults'),
-            _buildNavItem(context, 4, Icons.person, 'Profile'),
-          ],
-        ),
-      ),
-    ),
-  );
-}
+      child: scaffoldContent,
+    );
+  }
 
   Widget _buildNavItem(BuildContext context, int index, IconData icon, String label) {
     final isActive = widget.navigationShell.currentIndex == index;
@@ -126,14 +164,14 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
               ? [
                   if (isDark)
                     BoxShadow(
-                      color: const Color(0xFF6D28D9).withOpacity(0.4),
+                      color: const Color(0xFF6D28D9).withValues(alpha: 0.4),
                       blurRadius: 10,
                       spreadRadius: 1,
                       offset: const Offset(0, 2),
                     )
                   else
                     BoxShadow(
-                      color: const Color(0xFF6D528E).withOpacity(0.25),
+                      color: const Color(0xFF6D528E).withValues(alpha: 0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     )
@@ -187,7 +225,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
           boxShadow: [
             if (isDark)
               BoxShadow(
-                color: const Color(0xFF6D528E).withOpacity(0.5),
+                color: const Color(0xFF6D528E).withValues(alpha: 0.5),
                 blurRadius: 12,
                 spreadRadius: 1,
                 offset: const Offset(0, 2),

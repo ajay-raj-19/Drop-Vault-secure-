@@ -1,12 +1,17 @@
+import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/constants/app_version.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -61,6 +66,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 _buildBackupSection(),
                 const SizedBox(height: 24),
                 _buildPrivacySection(),
+                _buildWindowsDesktopSettings(),
                 const SizedBox(height: 24),
                 _buildAboutSection(),
               ],
@@ -80,8 +86,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -260,8 +266,117 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           iconBgColor: surfaceContainerHighest,
           iconColor: onSurfaceVariant,
           title: 'App Version',
-          trailing: Text('v2.4.1-stable', style: TextStyle(color: onSurfaceVariant)),
-          onTap: () {},
+          trailing: Text('v${AppVersionInfo.version} (${AppVersionInfo.buildNumber})', style: TextStyle(color: onSurfaceVariant)),
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Released on: ${AppVersionInfo.releaseDate}'),
+                backgroundColor: primary,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWindowsDesktopSettings() {
+    if (kIsWeb || !Platform.isWindows) return const SizedBox.shrink();
+
+    final settings = ref.watch(userSettingsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        _SettingsSection(
+          title: 'WINDOWS DESKTOP SETTINGS',
+          children: [
+            _SettingsTile(
+              icon: Icons.rocket_launch,
+              iconBgColor: secondaryFixed,
+              iconColor: onSecondaryFixed,
+              title: 'Launch on Startup',
+              trailing: Switch(
+                value: settings.launchOnStartup,
+                onChanged: (val) async {
+                  await ref.read(userSettingsProvider.notifier).updateSettings(launchOnStartup: val);
+                  try {
+                    if (val) {
+                      await launchAtStartup.enable();
+                    } else {
+                      await launchAtStartup.disable();
+                    }
+                  } catch (e) {
+                    debugPrint('Error toggling launch at startup: $e');
+                  }
+                },
+              ),
+            ),
+            _SettingsTile(
+              icon: Icons.folder,
+              iconBgColor: primaryFixedDim,
+              iconColor: onPrimaryFixedVariant,
+              title: 'Default Download Folder',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    settings.defaultDownloadFolder.isEmpty
+                        ? 'Not set (System Default)'
+                        : settings.defaultDownloadFolder.length > 25
+                            ? '...${settings.defaultDownloadFolder.substring(settings.defaultDownloadFolder.length - 22)}'
+                            : settings.defaultDownloadFolder,
+                    style: TextStyle(fontSize: 12, color: onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.chevron_right, color: outline),
+                ],
+              ),
+              onTap: () async {
+                try {
+                  final path = await FilePicker.platform.getDirectoryPath(
+                    dialogTitle: 'Select Default Download Folder',
+                  );
+                  if (path != null) {
+                    final prefs = ref.read(sharedPreferencesProvider);
+                    await prefs.setString('default_download_folder', path);
+                    await ref.read(userSettingsProvider.notifier).updateSettings(defaultDownloadFolder: path);
+                  }
+                } catch (e) {
+                  debugPrint('Error picking directory: $e');
+                }
+              },
+            ),
+            _SettingsTile(
+              icon: Icons.open_in_browser,
+              iconBgColor: secondaryContainer,
+              iconColor: onSecondaryContainer,
+              title: 'Open Links in Default Browser',
+              trailing: Switch(
+                value: settings.openLinksInDefaultBrowser,
+                onChanged: (val) async {
+                  final prefs = ref.read(sharedPreferencesProvider);
+                  await prefs.setBool('open_links_in_default_browser', val);
+                  await ref.read(userSettingsProvider.notifier).updateSettings(openLinksInDefaultBrowser: val);
+                },
+              ),
+            ),
+            _SettingsTile(
+              icon: Icons.aspect_ratio,
+              iconBgColor: surfaceContainerHighest,
+              iconColor: onSurfaceVariant,
+              title: 'Remember Window Size & Position',
+              trailing: Switch(
+                value: settings.rememberWindowPosition,
+                onChanged: (val) async {
+                  final prefs = ref.read(sharedPreferencesProvider);
+                  await prefs.setBool('remember_window_position', val);
+                  await ref.read(userSettingsProvider.notifier).updateSettings(rememberWindowPosition: val);
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );

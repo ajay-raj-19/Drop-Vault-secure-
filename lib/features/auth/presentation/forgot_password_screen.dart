@@ -158,6 +158,15 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     }
   }
 
+  bool _isValidPassword(String password) {
+    if (password.length < 8) return false;
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasDigits = RegExp(r'[0-9]').hasMatch(password);
+    final hasSpecialCharacters = RegExp(r'[!@#\$%^&*(),.?":{}|<>\-_#@]').hasMatch(password);
+    return hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+  }
+
   void _handleSaveNewPassword() async {
     final email = _emailController.text.trim();
     final code = _codeController.text.trim();
@@ -168,6 +177,16 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidPassword(newPassword)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 8 characters, with 1 uppercase, 1 lowercase, 1 number, and 1 special character.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -239,7 +258,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 height: 400,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFFEB196).withOpacity(0.2), // secondary-container
+                  color: const Color(0xFFFEB196).withValues(alpha: 0.2), // secondary-container
                 ),
               ),
             ),
@@ -251,7 +270,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFEEDBFF).withOpacity(0.2), // primary-fixed
+                  color: const Color(0xFFEEDBFF).withValues(alpha: 0.2), // primary-fixed
                 ),
               ),
             ),
@@ -280,7 +299,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 15,
                                 offset: const Offset(0, 5),
                               )
@@ -375,7 +394,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                                       color: _isLoading ? const Color(0xFF6D528E) : null,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF6D528E).withOpacity(0.3),
+                                          color: const Color(0xFF6D528E).withValues(alpha: 0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         )
@@ -488,7 +507,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                                       color: _isSuccess ? Colors.green[600] : _isLoading ? const Color(0xFF6D528E) : null,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFF6D528E).withOpacity(0.3),
+                                          color: const Color(0xFF6D528E).withValues(alpha: 0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         )

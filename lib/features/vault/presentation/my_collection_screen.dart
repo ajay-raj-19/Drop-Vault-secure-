@@ -1,10 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
-import '../../../core/widgets/premium_empty_state.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 class CollectionsPage extends ConsumerStatefulWidget {
@@ -43,53 +41,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
     }
   }
 
-  IconData _getCollectionWatermark(String name) {
-    switch (name.toLowerCase()) {
-      case 'personal research':
-      case 'study':
-        return Icons.menu_book;
-      case 'project phoenix':
-      case 'programming':
-        return Icons.code;
-      case 'financial documents':
-      case 'fitness':
-        return Icons.directions_run;
-      case 'inspiration box':
-      case 'travel':
-        return Icons.public;
-      default:
-        return Icons.folder_open;
-    }
-  }
 
-  List<Color> _getCollectionColors(String name, bool isDark) {
-    switch (name.toLowerCase()) {
-      case 'personal research':
-      case 'study':
-        return isDark
-            ? [const Color(0xFF1E1E1E), const Color(0xFF27153B)]
-            : [const Color(0xFFF8F2F7), const Color(0xFFEEDBFF)];
-      case 'project phoenix':
-      case 'programming':
-        return isDark
-            ? [const Color(0xFF1E1E1E), const Color(0xFF2E1C3F)]
-            : [const Color(0xFFE7E0E6), const Color(0xFFD9B9FD)];
-      case 'financial documents':
-      case 'fitness':
-        return isDark
-            ? [const Color(0xFF3C1F16), const Color(0xFF2B140E)]
-            : [const Color(0xFFFEB196), const Color(0xFFFFDBCF)];
-      case 'inspiration box':
-      case 'travel':
-        return isDark
-            ? [const Color(0xFF1E1E1E), const Color(0xFF3B1C1A)]
-            : [const Color(0xFFF3ECF2), const Color(0xFFFFDAD6)];
-      default:
-        return isDark
-            ? [const Color(0xFF1E1E1E), const Color(0xFF242424)]
-            : [const Color(0xFFFFFFFF), const Color(0xFFEDE6EC)];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +125,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
           icon: Icon(Icons.settings, color: onSurface),
           onPressed: () => context.go('/main/profile/settings'),
           style: IconButton.styleFrom(
-            backgroundColor: onSurfaceVariant.withOpacity(0.05),
+            backgroundColor: onSurfaceVariant.withValues(alpha: 0.05),
           ),
         ),
         SizedBox(width: isDesktop ? 32 : 16),
@@ -205,7 +157,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
               end: Alignment.bottomRight,
             ),
             boxShadow: [
-              BoxShadow(color: const Color(0xFF6D528E).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+              BoxShadow(color: const Color(0xFF6D528E).withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
             ],
           ),
           child: IconButton(
@@ -243,6 +195,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
           icon: _getCollectionIcon(col.name),
           onTap: () => context.push('/collection/${Uri.encodeComponent(col.name)}'),
           onLongPress: () => _showCollectionLongPressBottomSheet(context, ref, col),
+          onSecondaryTapDown: (details) => _showCollectionContextMenu(context, ref, col, details.globalPosition),
         );
       },
     );
@@ -254,21 +207,23 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
     required IconData icon,
     required VoidCallback onTap,
     required VoidCallback onLongPress,
+    required GestureTapDownCallback? onSecondaryTapDown,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
+      onSecondaryTapDown: onSecondaryTapDown,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          border: Border.all(color: outlineVariant.withOpacity(0.3)),
+          border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.05), blurRadius: 15, offset: const Offset(0, 5)),
+            BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05), blurRadius: 15, offset: const Offset(0, 5)),
           ],
         ),
         child: Column(
@@ -307,12 +262,12 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: outlineVariant.withOpacity(0.5), width: 2, style: BorderStyle.solid),
+          border: Border.all(color: outlineVariant.withValues(alpha: 0.5), width: 2, style: BorderStyle.solid),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_circle, size: 36, color: onSurfaceVariant.withOpacity(0.3)),
+            Icon(Icons.add_circle, size: 36, color: onSurfaceVariant.withValues(alpha: 0.3)),
             const SizedBox(height: 8),
             Text('Create New Vault', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: onSurfaceVariant)),
           ],
@@ -341,7 +296,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
           UserAvatar(
             size: 40,
             borderRadius: 20,
-            border: Border.all(color: primary.withOpacity(0.2), width: 2),
+            border: Border.all(color: primary.withValues(alpha: 0.2), width: 2),
           ),
         ],
       ),
@@ -481,6 +436,122 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage> {
               }
             },
             child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCollectionContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    Collection collection,
+    Offset globalPosition,
+  ) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final relativeRect = RelativeRect.fromLTRB(
+      globalPosition.dx,
+      globalPosition.dy,
+      globalPosition.dx + 1,
+      globalPosition.dy + 1,
+    );
+
+    if (!context.mounted) return;
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: relativeRect,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'open',
+          child: Row(
+            children: [
+              Icon(Icons.open_in_new, size: 18),
+              SizedBox(width: 12),
+              Text('Open Collection'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'rename',
+          child: Row(
+            children: [
+              Icon(Icons.edit, size: 18),
+              SizedBox(width: 12),
+              Text('Rename / Edit'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'properties',
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 18),
+              SizedBox(width: 12),
+              Text('Properties'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          textStyle: TextStyle(color: Colors.red),
+          child: Row(
+            children: [
+              Icon(Icons.delete, color: Colors.red, size: 18),
+              SizedBox(width: 12),
+              Text('Delete Collection'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null || !context.mounted) return;
+
+    switch (selected) {
+      case 'open':
+        context.push('/collection/${Uri.encodeComponent(collection.name)}');
+        break;
+      case 'rename':
+        _showEditCollectionDialog(context, collection);
+        break;
+      case 'properties':
+        _showCollectionPropertiesDialog(context, collection);
+        break;
+      case 'delete':
+        _showDeleteCollectionConfirmationDialog(context, collection);
+        break;
+    }
+  }
+
+  void _showCollectionPropertiesDialog(BuildContext context, Collection collection) {
+    final colItemsCount = ref.read(vaultProvider).where((item) => item.collectionName == collection.name).length;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: const Text('Collection Properties', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${collection.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Description: ${collection.description.isNotEmpty ? collection.description : 'No description'}'),
+            const SizedBox(height: 8),
+            Text('Total Items: $colItemsCount'),
+            const SizedBox(height: 8),
+            Text('Created: ${collection.createdAt.toLocal().toString().split('.')[0]}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
         ],
       ),

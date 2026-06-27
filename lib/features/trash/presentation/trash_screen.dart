@@ -199,7 +199,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
               for (final item in items) {
                 await ref.read(trashProvider.notifier).deleteItem(item.id);
               }
-              if (mounted) {
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Trash emptied successfully'), backgroundColor: Colors.green),
                 );
@@ -257,8 +257,8 @@ class _TrashPageState extends ConsumerState<TrashPage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -271,7 +271,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                         icon: Icon(Icons.arrow_back, color: primary),
                         onPressed: () => context.pop(),
                         style: IconButton.styleFrom(
-                          hoverColor: surfaceContainerHighest.withOpacity(0.5),
+                          hoverColor: surfaceContainerHighest.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -305,9 +305,9 @@ class _TrashPageState extends ConsumerState<TrashPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: secondaryFixed.withOpacity(0.3),
+        color: secondaryFixed.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: secondaryContainer.withOpacity(0.5)),
+        border: Border.all(color: secondaryContainer.withValues(alpha: 0.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +438,6 @@ class _TrashPageState extends ConsumerState<TrashPage> {
     required Color badgeTextColor,
     bool isUrgent = false,
   }) {
-    final isCollection = item.type.toLowerCase() == 'collection';
     final isImage = item.type.toLowerCase() == 'image';
     final isLocalFile = isImage && !item.content.startsWith('http');
 
@@ -459,7 +458,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                   height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: outlineVariant.withOpacity(0.3)),
+                    border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
                     image: DecorationImage(
                       image: FileImage(File(item.content)),
                       fit: BoxFit.cover,
@@ -472,7 +471,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                   height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: outlineVariant.withOpacity(0.3)),
+                    border: Border.all(color: outlineVariant.withValues(alpha: 0.3)),
                     image: DecorationImage(
                       image: NetworkImage(item.content),
                       fit: BoxFit.cover,
@@ -486,7 +485,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                   decoration: BoxDecoration(
                     color: _getIconBgColor(item),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _getIconColor(item).withOpacity(0.2)),
+                    border: Border.all(color: _getIconColor(item).withValues(alpha: 0.2)),
                   ),
                   child: Icon(_getIconData(item), color: _getIconColor(item), size: 28),
                 ),
@@ -552,7 +551,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                 icon: Icon(Icons.delete_forever, size: 24, color: outline),
                 style: IconButton.styleFrom(
                   padding: const EdgeInsets.all(12),
-                  hoverColor: errorContainer.withOpacity(0.5),
+                  hoverColor: errorContainer.withValues(alpha: 0.5),
                   foregroundColor: error,
                 ),
               ),

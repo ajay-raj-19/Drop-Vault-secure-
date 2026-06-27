@@ -101,7 +101,6 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
   Color get _surfaceVar => Theme.of(context).brightness == Brightness.dark
       ? context.appColors.secondaryBackground
       : const Color(0xFFE7E0E6);
-  Color get _onSurfaceVar => context.appColors.secondaryText;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Build
@@ -159,9 +158,9 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: _bg.withOpacity(0.85),
+              color: _bg.withValues(alpha: 0.85),
               border: Border(
-                bottom: BorderSide(color: _border.withOpacity(0.2)),
+                bottom: BorderSide(color: _border.withValues(alpha: 0.2)),
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -244,7 +243,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
               ],
             ),
           ),
-          Divider(color: _border.withOpacity(0.3), height: 1),
+          Divider(color: _border.withValues(alpha: 0.3), height: 1),
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -344,7 +343,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
             ],
 
             const SizedBox(height: 16),
-            Divider(color: _border.withOpacity(0.3), height: 1),
+            Divider(color: _border.withValues(alpha: 0.3), height: 1),
             const SizedBox(height: 16),
 
             // ── Format ──
@@ -430,9 +429,9 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        color: _surfaceVar.withOpacity(0.4),
+        color: _surfaceVar.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border.withOpacity(0.4)),
+        border: Border.all(color: _border.withValues(alpha: 0.4)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -474,9 +473,9 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: _primaryDim.withOpacity(0.25),
+                color: _primaryDim.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _primary.withOpacity(0.2)),
+                border: Border.all(color: _primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -502,12 +501,12 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: _surfaceVar.withOpacity(0.3),
+                  color: _surfaceVar.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: _pickedFile != null
-                        ? _primary.withOpacity(0.6)
-                        : _border.withOpacity(0.4),
+                        ? _primary.withValues(alpha: 0.6)
+                        : _border.withValues(alpha: 0.4),
                     width: _pickedFile != null ? 1.5 : 1,
                   ),
                 ),
@@ -517,7 +516,7 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _primaryDim.withOpacity(0.4),
+                        color: _primaryDim.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -616,16 +615,16 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded,
+                    Icon(Icons.warning_amber_rounded,
                         size: 18, color: Colors.red),
-                    const SizedBox(width: 10),
-                    const Expanded(
+                    SizedBox(width: 10),
+                    Expanded(
                       child: Text(
                         'This will permanently delete ALL your current data before restoring.',
                         style: TextStyle(
@@ -733,16 +732,26 @@ class _BackupRestorePageState extends ConsumerState<BackupRestorePage>
           _exportScope == 'collection' ? _selectedCollection : null;
       final type = _exportScope == 'type' ? _selectedType : null;
 
+      String? savedPath;
       switch (_exportFormat) {
         case 'json':
-          await _svc!.exportJson(
+          savedPath = await _svc!.exportJson(
               collectionFilter: col, typeFilter: type);
+          break;
         case 'csv':
-          await _svc!.exportCsv(
+          savedPath = await _svc!.exportCsv(
               collectionFilter: col, typeFilter: type);
+          break;
         case 'pdf':
-          await _svc!.exportPdf(
+          savedPath = await _svc!.exportPdf(
               collectionFilter: col, typeFilter: type);
+          break;
+      }
+
+      if (savedPath != null) {
+        _showSnack('Export successful! Saved to $savedPath', isError: false);
+      } else {
+        _showSnack('Export cancelled.', isError: false);
       }
 
       setState(() {}); // refresh last-backup date display
@@ -992,10 +1001,10 @@ class _ScopeChip extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? primary.withOpacity(0.15) : Colors.transparent,
+          color: selected ? primary.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? primary : context.appColors.border.withOpacity(0.4),
+            color: selected ? primary : context.appColors.border.withValues(alpha: 0.4),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1042,12 +1051,12 @@ class _FormatChip extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? primary.withOpacity(0.12) : Colors.transparent,
+            color: selected ? primary.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? primary.withOpacity(0.7)
-                  : context.appColors.border.withOpacity(0.35),
+                  ? primary.withValues(alpha: 0.7)
+                  : context.appColors.border.withValues(alpha: 0.35),
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -1116,12 +1125,12 @@ class _ModeCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? primary.withOpacity(0.1) : Colors.transparent,
+          color: selected ? primary.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? primary.withOpacity(0.7)
-                : context.appColors.border.withOpacity(0.35),
+                ? primary.withValues(alpha: 0.7)
+                : context.appColors.border.withValues(alpha: 0.35),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1201,8 +1210,8 @@ class _AutoBackupTile extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: selected
-                      ? primary.withOpacity(0.15)
-                      : context.appColors.secondaryBackground.withOpacity(0.4),
+                      ? primary.withValues(alpha: 0.15)
+                      : context.appColors.secondaryBackground.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

@@ -10,13 +10,13 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
 
   const GlassAppBar({
-    Key? key,
+    super.key,
     required this.title,
     this.leading,
     this.actions,
     this.onBackPress,
     this.showBackButton = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.background.withOpacity(0.8),
+              color: AppColors.background.withValues(alpha: 0.8),
               border: const Border(
                 bottom: BorderSide(
                   color: Color(0x33CCC4D0), // outlineVariant.withOpacity(0.2)
@@ -47,7 +47,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                               icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                               onPressed: onBackPress ?? () => Navigator.of(context).pop(),
                               style: IconButton.styleFrom(
-                                hoverColor: const Color(0xFFEDE6EC).withOpacity(0.5),
+                                hoverColor: const Color(0xFFEDE6EC).withValues(alpha: 0.5),
                               ),
                             ),
                       if (showBackButton) const SizedBox(width: 8),

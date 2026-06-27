@@ -213,7 +213,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -312,8 +312,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -326,7 +326,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                         icon: Icon(Icons.arrow_back, color: primary),
                         onPressed: () => context.pop(),
                         style: IconButton.styleFrom(
-                          hoverColor: onSurfaceVariant.withOpacity(0.08),
+                          hoverColor: onSurfaceVariant.withValues(alpha: 0.08),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -368,14 +368,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+                    color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.white,
                     width: 4,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: isDark
-                          ? const Color(0xFF6D528E).withOpacity(0.3)
-                          : Colors.black.withOpacity(0.15),
+                          ? const Color(0xFF6D528E).withValues(alpha: 0.3)
+                          : Colors.black.withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     )
@@ -399,7 +399,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -460,7 +460,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
 
   Widget _buildNameEditSection() {
     final fillColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F2F7);
-    final borderColor = isDark ? Colors.white.withOpacity(0.08) : Colors.transparent;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.transparent;
     final focusBorderColor = isDark ? AppColors.primaryFixedDim : AppColors.secondary;
 
     return Column(
@@ -577,8 +577,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage>
             ? [
                 BoxShadow(
                   color: isDark
-                      ? const Color(0xFF6D28D9).withOpacity(0.3)
-                      : const Color(0xFF6D528E).withOpacity(0.25),
+                      ? const Color(0xFF6D28D9).withValues(alpha: 0.3)
+                      : const Color(0xFF6D528E).withValues(alpha: 0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

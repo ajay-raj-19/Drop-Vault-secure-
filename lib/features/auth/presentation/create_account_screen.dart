@@ -2,11 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
 import 'providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
-import 'login_screen.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/widgets/brand_logo.dart';
 
@@ -28,10 +26,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
   late AnimationController _floatController;
   late Animation<Offset> _floatAnimation;
 
-  bool _showSuccessOverlay = false;
-  bool _showVerificationOverlay = false;
   bool _passwordsMatch = true;
-  bool _isLoadingSignup = false;
   bool _isLoadingGoogle = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -113,6 +108,20 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
     super.dispose();
   }
 
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+    return emailRegex.hasMatch(email);
+  }
+
+  bool _isValidPassword(String password) {
+    if (password.length < 8) return false;
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+    final hasDigits = RegExp(r'[0-9]').hasMatch(password);
+    final hasSpecialCharacters = RegExp(r'[!@#\$%^&*(),.?":{}|<>\-_#@]').hasMatch(password);
+    return hasUppercase && hasLowercase && hasDigits && hasSpecialCharacters;
+  }
+
   void _handleSignup() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
@@ -122,6 +131,26 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid email address format.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidPassword(password)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 8 characters, with 1 uppercase, 1 lowercase, 1 number, and 1 special character.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -138,18 +167,10 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
       return;
     }
 
-    setState(() {
-      _isLoadingSignup = true;
-    });
-
     try {
       await ref.read(authStateProvider.notifier).signUp(email, password, name);
-      // Automatically logged in and routed via refreshListenable
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingSignup = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
@@ -169,28 +190,11 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
       if (email != null && email.isNotEmpty) {
         final registered = await ref.read(authStateProvider.notifier).isEmailRegistered(email);
         if (registered) {
+          await ref.read(authStateProvider.notifier).signInWithGoogle(email, '');
           if (mounted) {
             setState(() {
               _isLoadingGoogle = false;
             });
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: const Text('Account Already Exists', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                content: const Text('Account already exists. Please login using your password.', style: TextStyle(color: Colors.black)),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      context.go('/login');
-                    },
-                    child: const Text('Go to Login'),
-                  ),
-                ],
-              ),
-            );
           }
         } else {
           if (mounted) {
@@ -198,7 +202,6 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
               _isLoadingGoogle = false;
               _emailController.text = email;
             });
-            context.go('/signup', extra: {'email': email});
           }
         }
       } else {
@@ -296,7 +299,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
               height: size.height * 0.4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD9B9FD).withOpacity(0.2), // primary-fixed-dim
+                color: const Color(0xFFD9B9FD).withValues(alpha: 0.2), // primary-fixed-dim
               ),
             ),
           ),
@@ -308,7 +311,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
               height: size.height * 0.4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFEB196).withOpacity(0.2), // secondary-container
+                color: const Color(0xFFFEB196).withValues(alpha: 0.2), // secondary-container
               ),
             ),
           ),
@@ -327,7 +330,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(isDesktop ? 16 : 0),
                 boxShadow: isDesktop
-                    ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)]
+                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20)]
                     : [],
               ),
               child: Row(
@@ -375,7 +378,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
                                   'Experience the premium standard of secure file storage and personal organization.',
                                   style: TextStyle(
                                     fontSize: 18,
-                                    color: const Color(0xFF4A454F).withOpacity(0.8),
+                                    color: const Color(0xFF4A454F).withValues(alpha: 0.8),
                                   ),
                                 ),
                               ],
@@ -391,8 +394,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
                                   child: Container(
                                     padding: const EdgeInsets.all(24),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.7),
-                                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                      color: Colors.white.withValues(alpha: 0.7),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
@@ -587,7 +590,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                                  boxShadow: [BoxShadow(color: const Color(0xFF6D528E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                                  boxShadow: [BoxShadow(color: const Color(0xFF6D528E).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
                               ),
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -607,7 +610,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
                               const Expanded(child: Divider(color: Colors.black12)),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text('OR CONTINUE WITH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4A454F).withOpacity(0.7))),
+                                child: Text('OR CONTINUE WITH', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF4A454F).withValues(alpha: 0.7))),
                               ),
                               const Expanded(child: Divider(color: Colors.black12)),
                             ],
@@ -698,7 +701,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
           readOnly: isReadOnly,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: const Color(0xFF7B757F).withOpacity(0.6)),
+            hintStyle: TextStyle(color: const Color(0xFF7B757F).withValues(alpha: 0.6)),
             prefixIcon: Icon(icon, color: const Color(0xFF7B757F)),
             suffixIcon: onToggleVisibility != null
                 ? IconButton(

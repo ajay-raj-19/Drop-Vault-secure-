@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/providers/providers.dart';
@@ -104,7 +104,7 @@ class BackupService {
   // EXPORT – JSON
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<void> exportJson({
+  Future<String?> exportJson({
     String? collectionFilter,
     String? typeFilter,
   }) async {
@@ -128,15 +128,18 @@ class BackupService {
 
     final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
     final fileName = 'DropVault_Backup_${_dateStamp()}.json';
-    await _shareText(jsonStr, fileName, 'application/json');
-    await _markBackupNow();
+    final savedPath = await _saveFileLocally(fileName: fileName, textContent: jsonStr);
+    if (savedPath != null) {
+      await _markBackupNow();
+    }
+    return savedPath;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // EXPORT – CSV
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<void> exportCsv({
+  Future<String?> exportCsv({
     String? collectionFilter,
     String? typeFilter,
   }) async {
@@ -160,15 +163,18 @@ class BackupService {
     }
 
     final fileName = 'DropVault_Backup_${_dateStamp()}.csv';
-    await _shareText(buf.toString(), fileName, 'text/csv');
-    await _markBackupNow();
+    final savedPath = await _saveFileLocally(fileName: fileName, textContent: buf.toString());
+    if (savedPath != null) {
+      await _markBackupNow();
+    }
+    return savedPath;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // EXPORT – PDF
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<void> exportPdf({
+  Future<String?> exportPdf({
     String? collectionFilter,
     String? typeFilter,
   }) async {
@@ -192,8 +198,11 @@ class BackupService {
 
     final bytes = await doc.save();
     final fileName = 'DropVault_Backup_${_dateStamp()}.pdf';
-    await _shareBytes(bytes, fileName, 'application/pdf');
-    await _markBackupNow();
+    final savedPath = await _saveFileLocally(fileName: fileName, bytesContent: bytes);
+    if (savedPath != null) {
+      await _markBackupNow();
+    }
+    return savedPath;
   }
 
   // ── PDF header / footer ───────────────────────────────────────────────────
@@ -211,7 +220,7 @@ class BackupService {
         children: [
           pw.Text(
             'Drop Vault',
-            style: pw.TextStyle(
+            style: const pw.TextStyle(
               fontSize: 15,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.deepPurple,
@@ -219,7 +228,7 @@ class BackupService {
           ),
           pw.Text(
             'Exported: ${_dateStamp()}',
-            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
           ),
         ],
       ),
@@ -231,7 +240,7 @@ class BackupService {
       alignment: pw.Alignment.centerRight,
       child: pw.Text(
         'Page ${ctx.pageNumber} of ${ctx.pagesCount}',
-        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
       ),
     );
   }
@@ -244,9 +253,9 @@ class BackupService {
     List<Reminder> reminders,
   ) {
     final content = <pw.Widget>[];
-    final subStyle = pw.TextStyle(fontSize: 10, color: PdfColors.grey700);
-    final h1 = pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold);
-    final h2 = pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold);
+    const subStyle = pw.TextStyle(fontSize: 10, color: PdfColors.grey700);
+    const h1 = pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold);
+    const h2 = pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold);
 
     // ── Title ──
     content.add(pw.Text('Vault Export Report', style: h1));
@@ -361,13 +370,13 @@ class BackupService {
           children: [
             pw.Text(
               col.name,
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                   fontWeight: pw.FontWeight.bold, fontSize: 12),
             ),
             pw.SizedBox(width: 8),
             pw.Text(
               '${items.length} item${items.length == 1 ? '' : 's'}',
-              style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
             ),
           ],
         ),
@@ -380,7 +389,7 @@ class BackupService {
             const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         child: pw.Text(
           col.description,
-          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
         ),
       ));
     }
@@ -418,7 +427,7 @@ class BackupService {
             color: PdfColors.deepPurple200,
             child: pw.Text(
               item.type.toUpperCase(),
-              style: pw.TextStyle(
+              style: const pw.TextStyle(
                   fontSize: 7,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white),
@@ -429,7 +438,7 @@ class BackupService {
             child: pw.Text(
               item.title,
               style:
-                  pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                  const pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
             ),
           ),
         ],
@@ -440,7 +449,7 @@ class BackupService {
       children.add(pw.SizedBox(height: 3));
       children.add(pw.Text(
         snippetContent,
-        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
       ));
     }
 
@@ -448,14 +457,14 @@ class BackupService {
       children.add(pw.SizedBox(height: 2));
       children.add(pw.Text(
         'Tags: ${item.tags.join(', ')}',
-        style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+        style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
       ));
     }
 
     children.add(pw.SizedBox(height: 2));
     children.add(pw.Text(
       'Added: ${item.createdAt.toString().substring(0, 10)}',
-      style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+      style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
     ));
 
     return pw.Container(
@@ -478,7 +487,7 @@ class BackupService {
       children: [
         pw.Text(
           value,
-          style: pw.TextStyle(
+          style: const pw.TextStyle(
             fontSize: 20,
             fontWeight: pw.FontWeight.bold,
             color: PdfColors.deepPurple700,
@@ -486,7 +495,7 @@ class BackupService {
         ),
         pw.SizedBox(height: 2),
         pw.Text(label,
-            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
       ],
     );
   }
@@ -629,35 +638,48 @@ class BackupService {
       );
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FILE SHARE HELPERS
+  // LOCAL FILE SAVE HELPER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<void> _shareText(
-    String content,
-    String fileName,
-    String mimeType,
-  ) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(content, flush: true);
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: mimeType)],
-      subject: 'Drop Vault Backup',
-    );
-  }
+  Future<String?> _saveFileLocally({
+    required String fileName,
+    String? textContent,
+    List<int>? bytesContent,
+  }) async {
+    String? targetDirPath;
+    
+    if (Platform.isAndroid) {
+      final defaultDir = Directory('/storage/emulated/0/Download/DropVault');
+      try {
+        if (!await defaultDir.exists()) {
+          await defaultDir.create(recursive: true);
+        }
+        targetDirPath = defaultDir.path;
+      } catch (e) {
+        // Fallback: prompt user to choose a directory
+        targetDirPath = await FilePicker.platform.getDirectoryPath();
+        if (targetDirPath == null) {
+          return null; // User cancelled
+        }
+      }
+    } else {
+      // On other platforms, try file picker directory path or document directory fallback
+      try {
+        targetDirPath = await FilePicker.platform.getDirectoryPath();
+      } catch (_) {}
+      if (targetDirPath == null) {
+        final docDir = await getApplicationDocumentsDirectory();
+        targetDirPath = docDir.path;
+      }
+    }
 
-  Future<void> _shareBytes(
-    List<int> bytes,
-    String fileName,
-    String mimeType,
-  ) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: mimeType)],
-      subject: 'Drop Vault Backup',
-    );
+    final file = File('$targetDirPath/$fileName');
+    if (textContent != null) {
+      await file.writeAsString(textContent, flush: true);
+    } else if (bytesContent != null) {
+      await file.writeAsBytes(bytesContent, flush: true);
+    }
+    return file.path;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

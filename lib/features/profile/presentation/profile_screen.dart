@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
@@ -86,8 +84,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: background.withOpacity(0.8),
-              border: Border(bottom: BorderSide(color: outlineVariant.withOpacity(0.2))),
+              color: background.withValues(alpha: 0.8),
+              border: Border(bottom: BorderSide(color: outlineVariant.withValues(alpha: 0.2))),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SafeArea(
@@ -102,7 +100,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     icon: Icon(Icons.settings, color: onSurface),
                     onPressed: () => context.go('/main/profile/settings'),
                     style: IconButton.styleFrom(
-                      backgroundColor: onSurfaceVariant.withOpacity(0.1),
+                      backgroundColor: onSurfaceVariant.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -220,7 +218,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         color: secondary,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(color: secondary.withOpacity(isDark ? 0.4 : 0.2), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(color: secondary.withValues(alpha: isDark ? 0.4 : 0.2), blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
       child: Material(

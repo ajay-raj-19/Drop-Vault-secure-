@@ -1,10 +1,7 @@
-import 'dart:ui';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/design_tokens.dart';
-import '../../../core/constants/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass_card.dart';
@@ -115,7 +112,7 @@ class DashboardPage extends ConsumerWidget {
       ),
       actions: [
         IconButton(
-          icon: Icon(Icons.settings, color: Theme.of(context).colorScheme.primary.withOpacity(0.87)),
+          icon: Icon(Icons.settings, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.87)),
           onPressed: () => context.go('/main/profile/settings'),
         ),
         const SizedBox(width: 16),
@@ -169,7 +166,7 @@ class DashboardPage extends ConsumerWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
     );
@@ -604,12 +601,12 @@ class DashboardPage extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6D528E).withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.03 : 0.1),
+                  color: const Color(0xFF6D528E).withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.03 : 0.1),
                   blurRadius: 40,
                   offset: const Offset(0, 20),
                 ),
               ],
-              border: Theme.of(context).brightness == Brightness.dark ? Border.all(color: Colors.white.withOpacity(0.08)) : null,
+              border: Theme.of(context).brightness == Brightness.dark ? Border.all(color: Colors.white.withValues(alpha: 0.08)) : null,
             ),
             child: ListView.builder(
               shrinkWrap: true,
@@ -905,6 +902,7 @@ class DashboardPage extends ConsumerWidget {
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (date != null) {
+                        if (!context.mounted) return;
                         final time = await showTimePicker(
                           context: context,
                           initialTime: TimeOfDay.fromDateTime(selectedDate),
@@ -990,14 +988,14 @@ class DashboardPage extends ConsumerWidget {
         Container(
           width: 2,
           height: 40,
-          color: isHighlighted ? Colors.white.withOpacity(0.3) : Colors.white.withOpacity(0.1),
+          color: isHighlighted ? Colors.white.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.1),
         ),
         const SizedBox(width: 16),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(time, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(isHighlighted ? 0.7 : 0.5))),
-            Text(title, style: TextStyle(fontSize: 16, fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w600, color: Colors.white.withOpacity(isHighlighted ? 1.0 : 0.7))),
+            Text(time, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: isHighlighted ? 0.7 : 0.5))),
+            Text(title, style: TextStyle(fontSize: 16, fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w600, color: Colors.white.withValues(alpha: isHighlighted ? 1.0 : 0.7))),
           ],
         ),
       ],
@@ -1053,12 +1051,12 @@ class _QuickActionCardState extends State<_QuickActionCard> {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withOpacity(0.08)
-                  : Colors.white.withOpacity(0.6),
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.white.withValues(alpha: 0.6),
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.shadowColor.withOpacity(_isPressed ? 0.3 : 0.15),
+                color: widget.shadowColor.withValues(alpha: _isPressed ? 0.3 : 0.15),
                 blurRadius: _isPressed ? 24 : 16,
                 offset: Offset(0, _isPressed ? 12 : 8),
               ),

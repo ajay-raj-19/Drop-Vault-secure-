@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import '../domain/auth_repository.dart';
 import '../domain/auth_state.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class MockAuthService implements AuthRepository {
   final SharedPreferences _prefs;
@@ -129,9 +130,9 @@ class MockAuthService implements AuthRepository {
           final verificationCode = (100000 + (DateTime.now().microsecondsSinceEpoch % 900000)).toString();
           await _prefs.setString('verification_code_$lowercaseEmail', verificationCode);
           
-          print("====================================");
-          print("EMAIL SIMULATOR: New code sent to $lowercaseEmail is $verificationCode");
-          print("====================================");
+          debugPrint("====================================");
+          debugPrint("EMAIL SIMULATOR: New code sent to $lowercaseEmail is $verificationCode");
+          debugPrint("====================================");
           
           _updateState(AuthState.unauthenticated(errorMessage: 'Unverified Account'));
           throw Exception('Unverified Account');
@@ -342,9 +343,9 @@ class MockAuthService implements AuthRepository {
     final resetCode = (100000 + (DateTime.now().microsecondsSinceEpoch % 900000)).toString();
     await _prefs.setString('reset_code_$lowercaseEmail', resetCode);
     
-    print("====================================");
-    print("EMAIL SIMULATOR: Reset code sent to $lowercaseEmail is $resetCode");
-    print("====================================");
+    debugPrint("====================================");
+    debugPrint("EMAIL SIMULATOR: Reset code sent to $lowercaseEmail is $resetCode");
+    debugPrint("====================================");
     
     _updateState(AuthState.unauthenticated());
   }

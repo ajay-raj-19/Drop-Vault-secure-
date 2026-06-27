@@ -1,9 +1,7 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/glass_card.dart';
@@ -16,7 +14,7 @@ import 'splash_screen_02.dart';
 import 'splash_screen_03.dart';
 
 class DropVaultSplashScreen extends ConsumerStatefulWidget {
-  const DropVaultSplashScreen({Key? key}) : super(key: key);
+  const DropVaultSplashScreen({super.key});
 
   @override
   ConsumerState<DropVaultSplashScreen> createState() => _DropVaultSplashScreenState();
@@ -93,7 +91,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xfffeb196).withOpacity(0.12),
+                color: const Color(0xfffeb196).withValues(alpha: 0.12),
               ),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
@@ -109,7 +107,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
               height: 380,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xffeedbff).withOpacity(0.08),
+                color: const Color(0xffeedbff).withValues(alpha: 0.08),
               ),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
@@ -205,7 +203,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.4),
+                                            color: Colors.black.withValues(alpha: 0.4),
                                             blurRadius: 30,
                                             offset: const Offset(4, 32),
                                           )
@@ -219,7 +217,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                                     height: 220,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(16),
@@ -242,11 +240,11 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                                 delay: const Duration(milliseconds: 200),
                                 parallaxX: _pointerX * 1.0,
                                 parallaxY: _pointerY * 1.0,
-                                child: GlassCard(
+                                child: const GlassCard(
                                   opacity: 0.15,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
+                                    children: [
                                       Icon(Icons.description, color: Colors.white, size: 18),
                                       SizedBox(width: 8),
                                       Text(
@@ -268,11 +266,11 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                                 delay: const Duration(milliseconds: 300),
                                 parallaxX: _pointerX * 1.5,
                                 parallaxY: _pointerY * 1.5,
-                                child: GlassCard(
+                                child: const GlassCard(
                                   opacity: 0.15,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
+                                    children: [
                                       Icon(Icons.image, color: Colors.white, size: 18),
                                       SizedBox(width: 8),
                                       Text(
@@ -359,7 +357,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           height: 24 / 16,
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                       ),
                     ),
@@ -385,15 +383,15 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                                 gradient: AppColors.buttonSplashGradient,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xffC85B84).withOpacity(0.4),
+                                    color: const Color(0xffC85B84).withValues(alpha: 0.4),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   )
                                 ],
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Text(
                                     'Next',
                                     style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
@@ -416,7 +414,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                             child: Text(
                               'Already have an account? Log In',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -433,7 +431,7 @@ class _DropVaultSplashScreenState extends ConsumerState<DropVaultSplashScreen> {
                       controller: _pageController,
                       pageCount: 3,
                       activeColor: Colors.white,
-                      inactiveColor: Colors.white.withOpacity(0.3),
+                      inactiveColor: Colors.white.withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 40),
                   ],

@@ -7,12 +7,12 @@ class OnboardingDots extends StatelessWidget {
   final Color inactiveColor;
 
   const OnboardingDots({
-    Key? key,
+    super.key,
     required this.controller,
     required this.pageCount,
     required this.activeColor,
     required this.inactiveColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

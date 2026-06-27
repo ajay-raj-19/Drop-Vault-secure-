@@ -15,7 +15,7 @@ class GlassCard extends StatelessWidget {
   final Color baseColor;
 
   const GlassCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.width,
@@ -27,7 +27,7 @@ class GlassCard extends StatelessWidget {
     this.blurSigma = 12.0,
     this.boxShadow,
     this.baseColor = Colors.white,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +46,8 @@ class GlassCard extends StatelessWidget {
 
     // Resolve border color: use 0.08 alpha white border in dark mode, or configured opacity in light mode
     Color resolvedBorderColor = isDark
-        ? Colors.white.withOpacity(0.08)
-        : Colors.white.withOpacity(borderOpacity);
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: borderOpacity);
 
     return ClipRRect(
       borderRadius: r,
@@ -60,7 +60,7 @@ class GlassCard extends StatelessWidget {
           decoration: BoxDecoration(
             shape: shape,
             borderRadius: isCircle ? null : r,
-            color: resolvedBaseColor.withOpacity(opacity),
+            color: resolvedBaseColor.withValues(alpha: opacity),
             border: Border.all(
               color: resolvedBorderColor,
             ),

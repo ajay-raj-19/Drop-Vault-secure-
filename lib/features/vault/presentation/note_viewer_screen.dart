@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,7 +17,6 @@ class NoteViewerScreen extends ConsumerWidget {
     final onSurface = context.appColors.primaryText;
     final onSurfaceVariant = context.appColors.secondaryText;
     final primary = Theme.of(context).colorScheme.primary;
-    final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -30,7 +28,7 @@ class NoteViewerScreen extends ConsumerWidget {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.arrow_back, color: onSurface, size: 20),
@@ -62,7 +60,7 @@ class NoteViewerScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: primary.withOpacity(0.1),
+                      color: primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -115,7 +113,7 @@ class NoteViewerScreen extends ConsumerWidget {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.04),
+                            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.04),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
