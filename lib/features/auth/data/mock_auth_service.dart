@@ -344,34 +344,74 @@ class MockAuthService implements AuthRepository {
     await _prefs.setString('reset_code_$lowercaseEmail', resetCode);
     
     debugPrint("====================================");
-    debugPrint("EMAIL SIMULATOR: Reset code sent to $lowercaseEmail is $resetCode");
+    debugPrint("EMAIL SIMULATOR: Reset link for $lowercaseEmail is:");
+    debugPrint("dropvault://reset-password?code=$resetCode");
     debugPrint("====================================");
     
     _updateState(AuthState.unauthenticated());
   }
 
+
+
   @override
-  Future<void> resetPassword(String email, String code, String newPassword) async {
-    final lowercaseEmail = email.trim().toLowerCase();
-    final savedCode = _prefs.getString('reset_code_$lowercaseEmail');
-    if (savedCode != code) {
-      throw Exception("Invalid verification code.");
-    }
-    
+  Future<void> updatePassword(String email, String newPassword) async {
     if (!_isValidPassword(newPassword)) {
       throw Exception("Password does not meet safety criteria");
     }
-    
+    final lowercaseEmail = email.trim().toLowerCase();
     final db = _loadRegisteredUsers();
     if (!db.containsKey(lowercaseEmail)) {
       throw Exception("Account not found.");
     }
     
     db[lowercaseEmail]!['password'] = _hashPassword(newPassword);
-    db[lowercaseEmail]!['isVerified'] = true; // Auto-verify on recovery
-    
+    db[lowercaseEmail]!['isVerified'] = true;
     await _saveRegisteredUsers(db);
     await _prefs.remove('reset_code_$lowercaseEmail');
+  }
+
+  @override
+  Future<void> exchangeCodeForSession(String code) async {
+    final db = _loadRegisteredUsers();
+    String? foundEmail;
+    
+    for (final email in db.keys) {
+      final savedCode = _prefs.getString('reset_code_$email');
+      if (savedCode == code) {
+        foundEmail = email;
+        break;
+      }
+    }
+    
+    if (foundEmail == null) {
+      if (code == 'mock-google-code') {
+        foundEmail = 'testuser@gmail.com';
+        if (!db.containsKey(foundEmail)) {
+          db[foundEmail] = {
+            'email': foundEmail,
+            'password': _hashPassword('password123'),
+            'displayName': 'Test User',
+            'fullName': 'Test User',
+            'joinDate': DateTime.now().toIso8601String(),
+            'isVerified': true,
+          };
+          await _saveRegisteredUsers(db);
+        }
+      } else {
+        throw Exception('Invalid or expired code.');
+      }
+    }
+    
+    final userDetails = db[foundEmail]!;
+    final user = AuthUser(
+      email: userDetails['email'],
+      displayName: userDetails['displayName'] ?? userDetails['fullName'] ?? 'User',
+      fullName: userDetails['fullName'] ?? '',
+      joinDate: DateTime.parse(userDetails['joinDate']),
+      isVerified: true,
+      profileImagePath: userDetails['profileImagePath'],
+    );
+    _updateState(AuthState.authenticated(user));
   }
 
   @override

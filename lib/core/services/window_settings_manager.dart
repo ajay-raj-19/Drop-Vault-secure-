@@ -30,7 +30,7 @@ class WindowSettingsManager extends WindowListener {
 
     WindowOptions windowOptions = WindowOptions(
       size: Size(width, height),
-      minimumSize: const Size(900, 600),
+      minimumSize: const Size(1100, 700),
       center: x == null || y == null,
       title: 'Drop Vault',
       titleBarStyle: TitleBarStyle.normal,

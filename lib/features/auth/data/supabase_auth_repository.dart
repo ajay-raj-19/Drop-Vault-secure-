@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState, AuthUser;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -20,41 +21,105 @@ class SupabaseAuthRepository implements AuthRepository {
     _init();
   }
 
-  void _init() {
-    // Listen to Supabase auth changes
-    _authSub = _supabase.auth.onAuthStateChange.listen((data) async {
-      final session = data.session;
-      final user = session?.user;
-      if (user != null) {
-        final authUser = _mapSupabaseUser(user);
-        _state = AuthState.authenticated(authUser);
-        await _migrateLocalData(user.email!);
-        await syncPendingProfileUpload();
-      } else {
-        _state = AuthState.unauthenticated();
+  Future<Map<String, String?>> _getProfileData(String userId) async {
+    try {
+      final res = await _supabase.from('profiles').select('full_name, avatar_url').eq('id', userId).maybeSingle().timeout(const Duration(seconds: 10));
+      if (res != null) {
+        return {
+          'full_name': res['full_name'] as String?,
+          'avatar_url': res['avatar_url'] as String?,
+        };
       }
-      _controller.add(_state);
-    });
-
-    // Check initial session
-    final user = _supabase.auth.currentUser;
-    if (user != null) {
-      _state = AuthState.authenticated(_mapSupabaseUser(user));
-      syncPendingProfileUpload();
-    } else {
-      _state = AuthState.unauthenticated();
-    }
-    _controller.add(_state);
+    } catch (_) {}
+    return {'full_name': null, 'avatar_url': null};
   }
 
-  AuthUser _mapSupabaseUser(User user) {
+  bool _disposed = false;
+  bool _syncingProfile = false;
+  int _sessionVersion = 0;
+
+  void _emit(AuthState state) {
+    if (_disposed) return;
+    _state = state;
+    _controller.add(state);
+  }
+
+  void _acceptSession(User? user) {
+    final version = ++_sessionVersion;
+    if (user == null) {
+      _emit(AuthState.unauthenticated());
+      return;
+    }
+    // Authentication must not wait for optional profile/storage requests.
+    _emit(AuthState.authenticated(_mapSupabaseUser(
+      user,
+      fullName: _prefs.getString('cached_full_name_${user.email}'),
+      avatarUrl: _prefs.getString('cached_avatar_url_${user.email}'),
+    )));
+    unawaited(_loadProfile(user, version));
+  }
+
+  void _init() {
+    _acceptSession(_supabase.auth.currentUser);
+    _authSub = _supabase.auth.onAuthStateChange.listen((data) {
+      _acceptSession(data.session?.user);
+    }, onError: (Object error) {
+      // A transient refresh failure must not discard a persisted session.
+      if (_supabase.auth.currentSession == null) {
+        _emit(AuthState.unauthenticated(errorMessage: 'Session expired. Please sign in again.'));
+      }
+    });
+  }
+
+  Future<void> _loadProfile(User user, int version) async {
+    try {
+      final profile = await _getProfileData(user.id);
+      if (_disposed || version != _sessionVersion ||
+          _supabase.auth.currentUser?.id != user.id) {
+        return;
+      }
+      if (profile['full_name'] != null) {
+        await _prefs.setString('cached_full_name_${user.email}', profile['full_name']!);
+      }
+      if (profile['avatar_url'] != null) {
+        await _prefs.setString('cached_avatar_url_${user.email}', profile['avatar_url']!);
+      }
+      if (_disposed || version != _sessionVersion) return;
+      _emit(AuthState.authenticated(_mapSupabaseUser(
+        user,
+        fullName: profile['full_name'] ?? _prefs.getString('cached_full_name_${user.email}'),
+        avatarUrl: profile['avatar_url'] ?? _prefs.getString('cached_avatar_url_${user.email}'),
+      )));
+    } catch (_) {
+      // Profile/cache failures do not invalidate authentication.
+    }
+  }
+
+  Future<void> _afterSignIn(User user) async {
+    try {
+      if (_supabase.auth.currentUser?.id != user.id) return;
+      if (user.email != null) await _migrateLocalData(user.email!);
+      if (_supabase.auth.currentUser?.id != user.id) return;
+      await _createProfileIfNotExists(
+        userId: user.id,
+        email: user.email ?? '',
+        fullName: user.userMetadata?['full_name'] ?? user.userMetadata?['display_name'] ?? '',
+        avatarUrl: user.userMetadata?['avatar_url'],
+      );
+      if (_supabase.auth.currentUser?.id == user.id) await syncPendingProfileUpload();
+    } catch (_) {
+      // Best-effort migration must never turn a successful login into an error.
+    }
+  }
+
+  AuthUser _mapSupabaseUser(User user, {String? fullName, String? avatarUrl}) {
     return AuthUser(
       email: user.email ?? '',
-      displayName: user.userMetadata?['display_name'] ?? user.userMetadata?['full_name'] ?? 'User',
-      fullName: user.userMetadata?['full_name'] ?? user.userMetadata?['display_name'] ?? '',
+      displayName: fullName ?? user.userMetadata?['display_name'] ?? user.userMetadata?['full_name'] ?? 'User',
+      fullName: fullName ?? user.userMetadata?['full_name'] ?? user.userMetadata?['display_name'] ?? '',
       joinDate: DateTime.parse(user.createdAt),
       isVerified: user.emailConfirmedAt != null,
-      profileImagePath: user.userMetadata?['avatar_url'] ?? user.userMetadata?['profile_image_path'],
+      profileImagePath: avatarUrl ?? user.userMetadata?['avatar_url'] ?? user.userMetadata?['profile_image_path'],
     );
   }
 
@@ -66,84 +131,74 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signIn(String email, String password) async {
-    _controller.add(AuthState.loading());
+    _emit(AuthState.loading());
     try {
       final response = await _supabase.auth.signInWithPassword(
         email: email.trim(),
         password: password,
       );
-      if (response.user != null) {
-        final authUser = _mapSupabaseUser(response.user!);
-        _state = AuthState.authenticated(authUser);
-        _controller.add(_state);
-        await _migrateLocalData(response.user!.email!);
-        await syncPendingProfileUpload();
+      if (response.session == null || response.user == null) {
+        throw const AuthException('No session returned. Please sign in again.');
       }
+      _acceptSession(response.user);
+      unawaited(_afterSignIn(response.user!));
     } on AuthException catch (e) {
       String msg = e.message;
       if (msg.contains('Invalid login credentials')) {
         msg = 'Incorrect password or account not found';
       }
       _state = AuthState.unauthenticated(errorMessage: msg);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(msg);
     } catch (e) {
       final msg = e.toString().contains('SocketException') ? 'Network unavailable' : 'Server unavailable';
       _state = AuthState.unauthenticated(errorMessage: msg);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(msg);
     }
   }
 
   @override
   Future<void> signUp(String email, String password, String displayName) async {
-    _controller.add(AuthState.loading());
+    _emit(AuthState.loading());
     try {
       final response = await _supabase.auth.signUp(
         email: email.trim(),
         password: password,
+        emailRedirectTo: 'dropvault://login-callback',
         data: {
           'display_name': displayName.trim(),
           'full_name': displayName.trim(),
         },
       );
-      if (response.user != null) {
-        final authUser = _mapSupabaseUser(response.user!);
-
-        // Create profile record in database as fallback
-        await _createProfileIfNotExists(
-          userId: response.user!.id,
-          email: response.user!.email!,
-          fullName: displayName.trim(),
-        );
-
-        _state = AuthState.authenticated(authUser);
-        _controller.add(_state);
-        await _migrateLocalData(response.user!.email!);
-        await syncPendingProfileUpload();
+      if (response.session == null) {
+        _emit(AuthState.unauthenticated());
+        return; // Email confirmation is required before a session exists.
       }
+      _acceptSession(response.user);
+      if (response.user != null) unawaited(_afterSignIn(response.user!));
     } on AuthException catch (e) {
       _state = AuthState.unauthenticated(errorMessage: e.message);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(e.message);
     } catch (e) {
       final msg = e.toString().contains('SocketException') ? 'Network unavailable' : 'Server unavailable';
       _state = AuthState.unauthenticated(errorMessage: msg);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(msg);
     }
   }
 
   @override
   Future<void> signOut() async {
-    _controller.add(AuthState.loading());
+    _emit(AuthState.loading());
     try {
       await _supabase.auth.signOut();
       _state = AuthState.unauthenticated();
-      _controller.add(_state);
+      _emit(_state);
     } catch (e) {
       _state = AuthState.unauthenticated();
-      _controller.add(_state);
+      _emit(_state);
     }
   }
 
@@ -152,6 +207,7 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email.trim(),
+        redirectTo: 'dropvault://reset-password',
       );
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -161,20 +217,25 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> resetPassword(String email, String code, String newPassword) async {
+  Future<void> updatePassword(String email, String newPassword) async {
     try {
-      await _supabase.auth.verifyOTP(
-        email: email.trim(),
-        token: code.trim(),
-        type: OtpType.recovery,
-      );
+      debugPrint('=== UPDATE PASSWORD ===');
+      debugPrint('Updating password for: $email');
       await _supabase.auth.updateUser(
         UserAttributes(password: newPassword),
       );
+      debugPrint('Password update success. Signing out of temporary recovery session...');
+      await _supabase.auth.signOut();
+      debugPrint('Password Update Done');
+      debugPrint('=======================');
     } on AuthException catch (e) {
+      debugPrint('Password Update Failure (AuthException): ${e.message}');
+      debugPrint('===================================================');
       throw Exception(e.message);
-    } catch (e) {
-      throw Exception('Verification failed or server unavailable');
+    } catch (e, stack) {
+      debugPrint('Password Update Failure (Exception): $e\n$stack');
+      debugPrint('===============================================');
+      throw Exception('Failed to update password. Please try again.');
     }
   }
 
@@ -195,16 +256,49 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle(String email, String displayName, {String? profileImagePath}) async {
-    _controller.add(AuthState.loading());
+    _emit(AuthState.loading());
     try {
-      final googleSignIn = GoogleSignIn(
-        scopes: ['email', 'profile'],
-        clientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
-      );
+      final bool isWindows = !kIsWeb && Platform.isWindows;
+      if (isWindows) {
+        await _pickGoogleAccountWindows();
+        _acceptSession(_supabase.auth.currentUser);
+        return; // The callback establishes the session.
+      }
+
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'];
+      final String currentPlatform = kIsWeb ? 'Web' : Platform.operatingSystem;
+      final bool isAndroid = !kIsWeb && Platform.isAndroid;
+
+      // Platform-specific GoogleSignIn configuration
+      // Android: Do NOT pass clientId — it causes DEVELOPER_ERROR.
+      //          Android uses Google Play Services config and needs serverClientId.
+      // iOS/Web: Use clientId (the Web Client ID).
+      final GoogleSignIn googleSignIn;
+      if (isAndroid) {
+        googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+          serverClientId: webClientId,
+        );
+      } else {
+        googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+          clientId: webClientId,
+        );
+      }
+
+      // Pre-signIn diagnostics
+      debugPrint('=== GOOGLE SIGN-IN PRE-FLIGHT ===');
+      debugPrint('Platform: $currentPlatform');
+      debugPrint('clientId value: $webClientId');
+      debugPrint('GoogleSignIn config: isAndroid=$isAndroid, using ${isAndroid ? "serverClientId" : "clientId"}');
+      debugPrint('Package Name: com.example.drop_vault');
+      debugPrint('SHA-1: (configured in Firebase/Google Cloud Console)');
+      debugPrint('=================================');
+
       final account = await googleSignIn.signIn();
       if (account == null) {
         _state = AuthState.unauthenticated(errorMessage: 'Google Sign-In was cancelled.');
-        _controller.add(_state);
+        _emit(_state);
         throw Exception('Google Sign-In was cancelled.');
       }
 
@@ -222,30 +316,27 @@ class SupabaseAuthRepository implements AuthRepository {
         accessToken: accessToken,
       );
 
-      if (response.user != null) {
-        final authUser = _mapSupabaseUser(response.user!);
-
-        // Create profile record in database as fallback
-        await _createProfileIfNotExists(
-          userId: response.user!.id,
-          email: response.user!.email!,
-          fullName: account.displayName ?? displayName,
-          avatarUrl: account.photoUrl ?? profileImagePath,
-        );
-
-        _state = AuthState.authenticated(authUser);
-        _controller.add(_state);
-        await _migrateLocalData(response.user!.email!);
-        await syncPendingProfileUpload();
+      if (response.session == null || response.user == null) {
+        throw const AuthException('Google Sign-In did not return a session.');
       }
-    } on AuthException catch (e) {
+      _acceptSession(response.user);
+      unawaited(_afterSignIn(response.user!));
+    } on AuthException catch (e, stackTrace) {
+      debugPrint('=== GOOGLE SIGN-IN FAILURE (AuthException) ===');
+      debugPrint('Error: ${e.message}');
+      debugPrint('Stack Trace:\n$stackTrace');
+      debugPrint('===============================================');
       _state = AuthState.unauthenticated(errorMessage: e.message);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(e.message);
-    } catch (e) {
-      final msg = e.toString().contains('SocketException') ? 'Network unavailable' : 'Server unavailable';
+    } catch (e, stackTrace) {
+      debugPrint('=== GOOGLE SIGN-IN FAILURE ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack Trace:\n$stackTrace');
+      debugPrint('==============================');
+      final msg = e.toString().contains('SocketException') ? 'Network unavailable' : e.toString();
       _state = AuthState.unauthenticated(errorMessage: msg);
-      _controller.add(_state);
+      _emit(_state);
       throw Exception(msg);
     }
   }
@@ -262,7 +353,8 @@ class SupabaseAuthRepository implements AuthRepository {
 
   Future<void> syncPendingProfileUpload() async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null || _syncingProfile) return;
+    _syncingProfile = true;
     try {
       final queue = _prefs.getStringList('pending_profile_uploads') ?? [];
       if (queue.isEmpty) return;
@@ -298,10 +390,11 @@ class SupabaseAuthRepository implements AuthRepository {
       queue.removeAt(0);
       await _prefs.setStringList('pending_profile_uploads', queue);
       
-      if (queue.isNotEmpty) {
-        await syncPendingProfileUpload();
-      }
-    } catch (_) {}
+    } catch (_) {
+      // Keep failed uploads queued for a later retry.
+    } finally {
+      _syncingProfile = false;
+    }
   }
 
   @override
@@ -366,9 +459,31 @@ class SupabaseAuthRepository implements AuthRepository {
           }).eq('id', response.user!.id);
         } catch (_) {}
 
-        final authUser = _mapSupabaseUser(response.user!);
+        final profileData = await _getProfileData(response.user!.id);
+
+        // Cache the profile details
+        final email = response.user!.email;
+        if (email != null) {
+          if (profileData['full_name'] != null) {
+            await _prefs.setString('cached_full_name_$email', profileData['full_name']!);
+          }
+          if (clearProfileImage) {
+            await _prefs.remove('cached_avatar_url_$email');
+          } else if (profileData['avatar_url'] != null) {
+            await _prefs.setString('cached_avatar_url_$email', profileData['avatar_url']!);
+          }
+        }
+
+        final cachedFullName = email != null ? _prefs.getString('cached_full_name_$email') : null;
+        final cachedAvatarUrl = email != null ? _prefs.getString('cached_avatar_url_$email') : null;
+
+        final authUser = _mapSupabaseUser(
+          response.user!,
+          fullName: profileData['full_name'] ?? cachedFullName ?? displayName ?? response.user!.userMetadata?['full_name'],
+          avatarUrl: clearProfileImage ? null : (profileData['avatar_url'] ?? cachedAvatarUrl ?? activeProfilePath),
+        );
         _state = AuthState.authenticated(authUser);
-        _controller.add(_state);
+        _emit(_state);
       }
     } on AuthException catch (e) {
       throw Exception(e.message);
@@ -380,19 +495,68 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<String?> pickGoogleAccount() async {
     try {
-      final googleSignIn = GoogleSignIn(
-        scopes: ['email', 'profile'],
-        clientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
-      );
+      final bool isWindows = !kIsWeb && Platform.isWindows;
+      if (isWindows) {
+        return await _pickGoogleAccountWindows();
+      }
+
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'];
+      final bool isAndroid = !kIsWeb && Platform.isAndroid;
+
+      // Platform-specific GoogleSignIn configuration
+      final GoogleSignIn googleSignIn;
+      if (isAndroid) {
+        googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+          serverClientId: webClientId,
+        );
+      } else {
+        googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+          clientId: webClientId,
+        );
+      }
+
+      debugPrint('=== PICK GOOGLE ACCOUNT PRE-FLIGHT ===');
+      debugPrint('Platform: ${kIsWeb ? "Web" : Platform.operatingSystem}');
+      debugPrint('Using ${isAndroid ? "serverClientId" : "clientId"}: $webClientId');
+      debugPrint('=======================================');
+
       final account = await googleSignIn.signIn();
       if (account == null) {
         throw Exception('Google Sign-In was cancelled.');
       }
       return account.email;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== PICK GOOGLE ACCOUNT FAILURE ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack Trace:\n$stackTrace');
+      debugPrint('===================================');
       if (e.toString().contains('sign_in_failed') || e.toString().contains('DEVELOPER_ERROR')) {
         throw Exception('Google Sign-In developer error: verify your GOOGLE_WEB_CLIENT_ID and package SHA-1 keys.');
       }
+      rethrow;
+    }
+  }
+
+  Future<String?> _pickGoogleAccountWindows() async {
+    try {
+      debugPrint('[Windows Google Sign-In] Launching OAuth in browser with custom URI scheme redirect...');
+      const redirectUrl = 'dropvault://google-callback';
+      
+      final response = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirectUrl,
+      );
+      
+      if (!response) {
+        throw Exception('Failed to launch the browser for Google Sign-In.');
+      }
+      
+      debugPrint('[Windows Google Sign-In] Browser launched successfully. Waiting for deep link callback...');
+      return null;
+    } catch (e, stackTrace) {
+      debugPrint('[Windows Google Sign-In] Exception in flow: $e\n$stackTrace');
       rethrow;
     }
   }
@@ -413,11 +577,14 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> reloadSession() async {
-    final user = _supabase.auth.currentUser;
-    if (user != null) {
-      _state = AuthState.authenticated(_mapSupabaseUser(user));
-      _controller.add(_state);
-    }
+    _acceptSession(_supabase.auth.currentUser);
+  }
+
+  @override
+  Future<void> exchangeCodeForSession(String code) async {
+    final response = await _supabase.auth.exchangeCodeForSession(code);
+    _acceptSession(response.session.user);
+    unawaited(_afterSignIn(response.session.user));
   }
 
   @override
@@ -448,7 +615,7 @@ class SupabaseAuthRepository implements AuthRepository {
     String? avatarUrl,
   }) async {
     try {
-      final existing = await _supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+      final existing = await _supabase.from('profiles').select('id').eq('id', userId).maybeSingle().timeout(const Duration(seconds: 10));
       if (existing == null) {
         await _supabase.from('profiles').insert({
           'id': userId,
@@ -595,6 +762,9 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   void dispose() {
+    _disposed = true;
+    ++_sessionVersion;
     _authSub?.cancel();
+    _controller.close();
   }
 }

@@ -9,8 +9,10 @@ import '../providers/onboarding_provider.dart';
 // Import all presentation screens
 import '../../features/onboarding/presentation/splash_screen_01.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/startup_loading_screen.dart';
 import '../../features/auth/presentation/create_account_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/dashboard/presentation/home_dashboard_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/vault/presentation/add_item_screen.dart';
@@ -61,53 +63,69 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
   final onboardingCompleted = ref.watch(onboardingCompletedProvider);
 
-  return GoRouter(
-    initialLocation: onboardingCompleted ? '/login' : '/splash',
+  final refresh = GoRouterRefreshStream(authRepository.authStateChanges);
+  ref.onDispose(refresh.dispose);
+  final router = GoRouter(
+    initialLocation: '/',
     navigatorKey: _rootNavigatorKey,
-    refreshListenable: GoRouterRefreshStream(authRepository.authStateChanges),
+    refreshListenable: refresh,
     redirect: (context, state) {
       final authState = authRepository.currentAuthState;
-      final isAuthenticated = authState.status == AuthStatus.authenticated;
+      final status = authState.status;
+      final isAuthenticated = status == AuthStatus.authenticated;
 
       final currentLocation = state.matchedLocation;
+      final isOnStartup = currentLocation == '/';
       final isOnSplash = currentLocation == '/splash';
       final isOnLogin = currentLocation == '/login';
       final isOnSignUp = currentLocation == '/signup';
       final isOnForgot = currentLocation == '/forgot-password';
-      final isAuthRoute = isOnLogin || isOnSignUp || isOnForgot;
+      final isOnReset = currentLocation == '/reset-password';
+      final isAuthRoute = isOnLogin || isOnSignUp || isOnForgot || isOnReset;
 
-      // ── CASE 1: Onboarding not completed → show splash screens
+      // ── CASE 0: Onboarding not completed → show onboarding splash screens
       if (!onboardingCompleted) {
-        // Allow splash screen; redirect everything else to splash
         if (!isOnSplash) {
           return '/splash';
         }
         return null;
       }
 
+      // ── CASE 1: Auth state is still resolving → stay on StartupLoadingPage
+      if (status == AuthStatus.loading && isAuthRoute) return null;
+      if (status == AuthStatus.initial || status == AuthStatus.loading) {
+        if (!isOnStartup) {
+          return '/';
+        }
+        return null;
+      }
+
       // ── CASE 2: Onboarding completed + NOT authenticated → login
       if (!isAuthenticated) {
-        // If user somehow lands on splash after onboarding, redirect to login
-        if (isOnSplash) {
+        if (isOnStartup || isOnSplash) {
           return '/login';
         }
-        // Allow auth routes (login, signup, forgot-password)
         if (isAuthRoute) {
           return null;
         }
-        // Redirect everything else (dashboard, etc.) to login
         return '/login';
       }
 
       // ── CASE 3: Onboarding completed + authenticated → dashboard
-      // Redirect auth/onboarding routes to dashboard
-      if (isOnSplash || isAuthRoute) {
+      final isRedirectRoute = isOnStartup || isOnSplash || isOnLogin || isOnSignUp || isOnForgot;
+      if (isRedirectRoute) {
         return '/main/dashboard';
       }
 
       return null;
     },
     routes: [
+      // Startup/Loading screen
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const StartupLoadingPage(),
+      ),
+
       // Onboarding Screens
       GoRoute(
         path: '/splash',
@@ -134,6 +152,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final email = state.extra as String?;
+          return ResetPasswordPage(email: email);
+        },
       ),
 
       // Filtered Items by Category
@@ -273,4 +298,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

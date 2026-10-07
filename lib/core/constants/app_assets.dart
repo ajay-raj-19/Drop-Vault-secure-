@@ -18,5 +18,5 @@ class AppAssets {
       'https://lh3.googleusercontent.com/aida-public/AB6AXuDsxLur2JxojRH4GAHT8Pb--Pxk-EM3bSmhJnZ8tcwojyKvMMmhsJZBtmTXNGxEDx-dCNVys75Gbte9Xubx8SqzJ1wZNyJR5ytLMWqP00lenJo7j4CUEkd5Wz9iU0MxHYEOUgbjARPMFUikH68gaiFhD5Ofy2q_QUe-A8syC47kJ_hUClS6_gcYh2k1Fq74ZQ-nGX-eicZGvAi1cYWykMjasXdVA4lSjDd0HacLMxxeCHPuekCvjzgSyHv6hRy_76v1coRXp-dEhqyT';
   
   static const String googleLogo = 'assets/images/google_logo.png';
-  static const String logo = 'assets/images/Drop_Vault_Logo.png';
+  static const String logo = 'assets/images/drop_vault_logo.png';
 }

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/providers.dart';
-import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../utils/manual_refresh_helper.dart';
 
 class DesktopShortcutWrapper extends ConsumerWidget {
   final Widget child;
@@ -61,42 +61,7 @@ class DesktopShortcutWrapper extends ConsumerWidget {
           }
         },
         const SingleActivator(LogicalKeyboardKey.keyR, control: true): () async {
-          // Visual micro-feedback for starting refresh
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Refreshing vault data...'),
-                ],
-              ),
-              duration: Duration(seconds: 1),
-            ),
-          );
-          try {
-            await ref.read(authRepositoryProvider).reloadSession();
-            ref.read(vaultProvider.notifier).reloadItems();
-            ref.read(collectionProvider.notifier).reloadCollections();
-            ref.read(reminderProvider.notifier).reloadReminders();
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Failed to refresh data: $e'),
-                  backgroundColor: Colors.redAccent,
-                ),
-              );
-            }
-          }
+          await performManualRefresh(context, ref);
         },
       },
       child: Focus(

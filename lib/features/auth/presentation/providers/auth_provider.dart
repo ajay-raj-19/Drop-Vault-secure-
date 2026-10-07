@@ -7,12 +7,19 @@ import '../../data/supabase_auth_repository.dart';
 
 import '../../../../core/providers/providers.dart' show sharedPreferencesProvider, supabaseServiceProvider;
 
+import 'package:flutter/foundation.dart';
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   final supabaseService = ref.watch(supabaseServiceProvider);
   if (supabaseService.isInitialized) {
-    return SupabaseAuthRepository(prefs, supabaseService.client);
+    final repository = SupabaseAuthRepository(prefs, supabaseService.client);
+    ref.onDispose(repository.dispose);
+    return repository;
   } else {
+    if (kReleaseMode) {
+      throw StateError('Supabase is not initialized in Release Mode. Mock authentication is disabled.');
+    }
     return MockAuthService(prefs);
   }
 });
@@ -26,7 +33,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   StreamSubscription? _subscription;
 
-  AuthNotifier(this._repository) : super(AuthState.initial()) {
+  AuthNotifier(this._repository) : super(_repository.currentAuthState) {
     _subscription = _repository.authStateChanges.listen((state) {
       this.state = state;
     });
@@ -66,9 +73,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> resetPassword(String email, String code, String newPassword) async {
+
+
+  Future<void> exchangeCodeForSession(String code) async {
     try {
-      await _repository.resetPassword(email, code, newPassword);
+      await _repository.exchangeCodeForSession(code);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updatePassword(String email, String newPassword) async {
+    try {
+      await _repository.updatePassword(email, newPassword);
     } catch (e) {
       rethrow;
     }

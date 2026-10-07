@@ -9,7 +9,9 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/widgets/premium_empty_state.dart';
 import '../../vault/presentation/collection_items_screen.dart';
-
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../../../core/utils/manual_refresh_helper.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 final dashboardLoadingProvider = StateProvider<bool>((ref) => true);
@@ -17,10 +19,57 @@ final dashboardLoadingProvider = StateProvider<bool>((ref) => true);
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
+  Widget _buildOfflineBanner(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? Colors.amber.shade900.withValues(alpha: 0.2) : Colors.amber.shade50;
+    final borderColor = isDark ? Colors.amber.shade700.withValues(alpha: 0.3) : Colors.amber.shade200;
+    final titleColor = isDark ? Colors.amber.shade200 : Colors.amber.shade900;
+    final subtitleColor = isDark ? Colors.amber.shade300 : Colors.amber.shade800;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off, color: isDark ? Colors.amber.shade300 : Colors.amber.shade800),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Offline Mode',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: titleColor,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  'Cloud synchronization unavailable.',
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final displayName = authState.user?.displayName ?? 'Ajay';
+    final isOffline = ref.watch(isOfflineProvider);
 
     final isLoading = ref.watch(dashboardLoadingProvider);
     if (isLoading) {
@@ -39,11 +88,7 @@ class DashboardPage extends ConsumerWidget {
       appBar: _buildAppBar(context, ref),
       body: RefreshIndicator(
         onRefresh: () async {
-          await Future.delayed(const Duration(milliseconds: 800));
-          await ref.read(authRepositoryProvider).reloadSession();
-          ref.read(vaultProvider.notifier).reloadItems();
-          ref.read(collectionProvider.notifier).reloadCollections();
-          ref.read(reminderProvider.notifier).reloadReminders();
+          await performManualRefresh(context, ref);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -54,6 +99,7 @@ class DashboardPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isOffline) _buildOfflineBanner(context),
                   _buildGreetingAndSearch(context, displayName),
                   const SizedBox(height: 40),
                   _buildStatsAndActions(context, ref, isLoading),
@@ -86,6 +132,8 @@ class DashboardPage extends ConsumerWidget {
       border: Border.all(color: context.appColors.primaryFixedDim, width: 2),
     );
 
+    final isSyncing = ref.watch(isSyncingProvider);
+
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
@@ -111,6 +159,23 @@ class DashboardPage extends ConsumerWidget {
         ),
       ),
       actions: [
+        if (!kIsWeb && Platform.isWindows) ...[
+          if (isSyncing)
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: Padding(
+                padding: EdgeInsets.all(14.0),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.87)),
+              onPressed: () => performManualRefresh(context, ref),
+              tooltip: 'Sync Now',
+            ),
+        ],
         IconButton(
           icon: Icon(Icons.settings, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.87)),
           onPressed: () => context.go('/main/profile/settings'),
@@ -121,11 +186,23 @@ class DashboardPage extends ConsumerWidget {
   }
 
   Widget _buildGreetingAndSearch(BuildContext context, String name) {
+    final hour = DateTime.now().hour;
+    String greeting;
+    if (hour >= 5 && hour < 12) {
+      greeting = 'Good Morning ☀️';
+    } else if (hour >= 12 && hour < 17) {
+      greeting = 'Good Afternoon 🌤️';
+    } else if (hour >= 17 && hour < 21) {
+      greeting = 'Good Evening 🌇';
+    } else {
+      greeting = 'Good Night 🌙';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Good Morning, $name',
+          '$greeting, $name',
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(height: 4),
@@ -135,6 +212,8 @@ class DashboardPage extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
         TextField(
+          readOnly: true,
+          onTap: () => context.go('/main/search'),
           decoration: InputDecoration(
             hintText: 'Search your vault...',
             hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -218,16 +297,21 @@ class DashboardPage extends ConsumerWidget {
       );
     }
 
-    Widget quickActions = _buildQuickActionsRow(context);
+    Widget quickActions = _buildQuickActionsRow(context, isDesktop: isDesktop);
 
     if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: 4, child: statsCards),
-          const SizedBox(width: 16),
-          Expanded(flex: 8, child: quickActions),
-        ],
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth = (constraints.maxWidth - 5 * 16) / 6;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: cardWidth * 2 + 16, child: statsCards),
+              const SizedBox(width: 16),
+              Expanded(child: quickActions),
+            ],
+          );
+        },
       );
     } else {
       return Column(
@@ -240,13 +324,14 @@ class DashboardPage extends ConsumerWidget {
     }
   }
 
-  Widget _buildQuickActionsRow(BuildContext context) {
+  Widget _buildQuickActionsRow(BuildContext context, {required bool isDesktop}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
       children: [
         Expanded(
           child: _QuickActionCard(
+            height: isDesktop ? 160 : null,
             icon: Icons.link,
             label: 'Link',
             bgColor: isDark ? const Color(0xFF3D2518) : const Color(0xFFFEB196),
@@ -255,9 +340,10 @@ class DashboardPage extends ConsumerWidget {
             onTap: () => context.go('/items/link'),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isDesktop ? 16 : 12),
         Expanded(
           child: _QuickActionCard(
+            height: isDesktop ? 160 : null,
             icon: Icons.edit_note,
             label: 'Note',
             bgColor: isDark ? const Color(0xFF2A1845) : const Color(0xFFEEDBFF),
@@ -266,9 +352,10 @@ class DashboardPage extends ConsumerWidget {
             onTap: () => context.go('/items/note'),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isDesktop ? 16 : 12),
         Expanded(
           child: _QuickActionCard(
+            height: isDesktop ? 160 : null,
             icon: Icons.upload_file,
             label: 'File',
             bgColor: isDark ? const Color(0xFF1A2538) : const Color(0xFFD6E8FF),
@@ -277,9 +364,10 @@ class DashboardPage extends ConsumerWidget {
             onTap: () => context.go('/items/file'),
           ),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isDesktop ? 16 : 12),
         Expanded(
           child: _QuickActionCard(
+            height: isDesktop ? 160 : null,
             icon: Icons.image,
             label: 'Image',
             bgColor: isDark ? const Color(0xFF3A1816) : const Color(0xFFFFDAD6),
@@ -1004,6 +1092,7 @@ class DashboardPage extends ConsumerWidget {
 }
 
 class _QuickActionCard extends StatefulWidget {
+  final double? height;
   final IconData icon;
   final String label;
   final Color bgColor;
@@ -1012,6 +1101,7 @@ class _QuickActionCard extends StatefulWidget {
   final VoidCallback onTap;
 
   const _QuickActionCard({
+    this.height,
     required this.icon,
     required this.label,
     required this.bgColor,
@@ -1043,6 +1133,7 @@ class _QuickActionCardState extends State<_QuickActionCard> {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         child: AnimatedContainer(
+          height: widget.height,
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),

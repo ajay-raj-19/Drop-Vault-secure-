@@ -40,5 +40,7 @@ final reminderProvider = StateNotifierProvider<ReminderNotifier, List<Reminder>>
   final repository = ref.watch(reminderRepositoryProvider);
   final authState = ref.watch(authStateProvider);
   final email = authState.user?.email ?? 'anonymous';
+  // Rebuild whenever a sync completes
+  ref.watch(syncTriggerProvider);
   return ReminderNotifier(repository, email: email);
 });

@@ -9,7 +9,8 @@ abstract class AuthRepository {
   Future<void> reloadSession();
   Future<void> verifyEmail(String email, String code);
   Future<void> signInWithGoogle(String email, String displayName, {String? profileImagePath});
-  Future<void> resetPassword(String email, String code, String newPassword);
+  Future<void> updatePassword(String email, String newPassword);
+  Future<void> exchangeCodeForSession(String code);
   Future<void> deleteAccount(String email);
   Future<String?> pickGoogleAccount();
   Future<bool> isEmailRegistered(String email);

@@ -7,6 +7,7 @@ class VaultItem {
   final String content;
   final String collectionName;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final List<String> tags;
   final String? category;
 
@@ -17,9 +18,10 @@ class VaultItem {
     required this.content,
     required this.collectionName,
     required this.createdAt,
+    DateTime? updatedAt,
     this.tags = const [],
     this.category,
-  });
+  }) : updatedAt = updatedAt ?? createdAt;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -28,6 +30,7 @@ class VaultItem {
     'content': content,
     'collectionName': collectionName,
     'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
     'tags': tags,
     'category': category,
   };
@@ -39,6 +42,9 @@ class VaultItem {
     content: json['content'],
     collectionName: json['collectionName'] ?? 'Personal Research',
     createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+    updatedAt: json['updatedAt'] != null
+        ? DateTime.parse(json['updatedAt'])
+        : DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     tags: List<String>.from(json['tags'] ?? []),
     category: json['category'],
   );

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/supabase_service.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../services/sync_service.dart';
 
 // Repository interfaces
 import '../../features/vault/domain/collection_repository.dart';
@@ -43,6 +44,9 @@ export 'theme_provider.dart';
 export 'settings_provider.dart';
 export 'undo_provider.dart';
 
+// Sync Service
+export '../services/sync_service.dart';
+
 // Shared SharedPreferences Provider
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be overridden in main.dart');
@@ -73,7 +77,8 @@ final localCollectionRepositoryProvider = Provider<CollectionRepository>((ref) {
 final supabaseCollectionRepositoryProvider = Provider<CollectionRepository>((ref) {
   final svc = ref.watch(supabaseServiceProvider);
   final local = ref.watch(localCollectionRepositoryProvider);
-  return SupabaseCollectionRepository(svc, local);
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return SupabaseCollectionRepository(svc, local, prefs);
 });
 
 final collectionRepositoryProvider = Provider<CollectionRepository>((ref) {
@@ -116,7 +121,8 @@ final localReminderRepositoryProvider = Provider<ReminderRepository>((ref) {
 final supabaseReminderRepositoryProvider = Provider<ReminderRepository>((ref) {
   final svc = ref.watch(supabaseServiceProvider);
   final local = ref.watch(localReminderRepositoryProvider);
-  return SupabaseReminderRepository(svc, local);
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return SupabaseReminderRepository(svc, local, prefs);
 });
 
 final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
@@ -169,3 +175,13 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
     return ref.watch(localProfileRepositoryProvider);
   }
 });
+
+final syncServiceProvider = Provider<SyncService>((ref) {
+  final syncService = SyncService.instance;
+  syncService.initialize(ref);
+  ref.onDispose(syncService.dispose);
+  return syncService;
+});
+
+final isOfflineProvider = StateProvider<bool>((ref) => false);
+

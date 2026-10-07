@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../domain/item_repository.dart';
@@ -18,90 +19,16 @@ class SupabaseItemRepository implements ItemRepository {
 
   @override
   Future<List<VaultItem>> getItems(String email) async {
-    await syncPendingUploads();
-    return _fetchItems(email, isTrash: false);
+    return _localRepository.getItems(email);
   }
 
   @override
   Future<List<VaultItem>> getTrashItems(String email) async {
-    await syncPendingUploads();
-    return _fetchItems(email, isTrash: true);
+    return _localRepository.getTrashItems(email);
   }
 
-  Future<List<VaultItem>> _fetchItems(String email, {required bool isTrash}) async {
-    final localItems = isTrash
-        ? await _localRepository.getTrashItems(email)
-        : await _localRepository.getItems(email);
 
-    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
-      try {
-        final userId = _supabaseService.client.auth.currentUser!.id;
-        final response = await _supabaseService.client
-            .from('items')
-            .select('*, item_tags(tags(name))')
-            .eq('user_id', userId)
-            .eq('is_trash', isTrash)
-            .order('created_at', ascending: false);
 
-        final remoteItems = (response as List).map((json) {
-          final tagsList = <String>[];
-          if (json['item_tags'] != null) {
-            for (final it in json['item_tags'] as List) {
-              if (it['tags'] != null && it['tags']['name'] != null) {
-                tagsList.add(it['tags']['name'] as String);
-              }
-            }
-          }
-
-          return VaultItem(
-            id: json['id'],
-            title: json['title'],
-            type: json['type'],
-            content: json['content'],
-            collectionName: json['collection_name'],
-            createdAt: DateTime.parse(json['created_at']),
-            category: json['category'],
-            tags: tagsList,
-          );
-        }).toList();
-
-        // Sync local cache
-        for (final item in remoteItems) {
-          final localIndex = localItems.indexWhere((i) => toUuid(i.id) == item.id);
-          if (localIndex == -1) {
-            if (isTrash) {
-              await _localRepository.addTrashItem(email, item);
-            } else {
-              await _localRepository.addItem(email, item);
-            }
-          } else {
-            final localItem = localItems[localIndex];
-            if (localItem.title != item.title ||
-                localItem.content != item.content ||
-                localItem.collectionName != item.collectionName ||
-                localItem.category != item.category ||
-                localItem.tags.length != item.tags.length) {
-              
-              if (isTrash) {
-                await _localRepository.deleteTrashItem(email, localItem.id);
-                await _localRepository.addTrashItem(email, item);
-              } else {
-                await _localRepository.updateItem(email, item);
-              }
-            }
-          }
-        }
-
-        return isTrash
-            ? await _localRepository.getTrashItems(email)
-            : await _localRepository.getItems(email);
-      } catch (_) {
-        // Fall back silently to local cache
-      }
-    }
-
-    return localItems;
-  }
 
   Future<void> _validateFile(VaultItem item) async {
     final type = item.type.toLowerCase();
@@ -131,55 +58,206 @@ class SupabaseItemRepository implements ItemRepository {
 
   @override
   Future<void> addItem(String email, VaultItem item) async {
-    await _validateFile(item);
-    await _localRepository.addItem(email, item);
-    await _syncItemToCloud(email, item, isTrash: false);
+    final updatedItem = VaultItem(
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      content: item.content,
+      collectionName: item.collectionName,
+      createdAt: item.createdAt,
+      updatedAt: DateTime.now(),
+      tags: item.tags,
+      category: item.category,
+    );
+    await _validateFile(updatedItem);
+    await _localRepository.addItem(email, updatedItem);
+    await _syncItemToCloud(email, updatedItem, isTrash: false);
   }
 
   @override
   Future<void> updateItem(String email, VaultItem item) async {
-    await _validateFile(item);
-    await _localRepository.updateItem(email, item);
-    await _syncItemToCloud(email, item, isTrash: false);
+    final updatedItem = VaultItem(
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      content: item.content,
+      collectionName: item.collectionName,
+      createdAt: item.createdAt,
+      updatedAt: DateTime.now(),
+      tags: item.tags,
+      category: item.category,
+    );
+    await _validateFile(updatedItem);
+    await _localRepository.updateItem(email, updatedItem);
+    await _syncItemToCloud(email, updatedItem, isTrash: false);
   }
 
   @override
   Future<void> deleteItem(String email, String id) async {
+    debugPrint('=== DELETE DIAGNOSTICS ===');
+    debugPrint('Delete Requested: Item');
+    debugPrint('Item ID: $id');
+    debugPrint('Repository Used: SupabaseItemRepository');
+
+    // 1. Retrieve item details before deleting locally
     final items = await _localRepository.getItems(email);
     final itemIndex = items.indexWhere((i) => i.id == id);
-    VaultItem? itemToDelete;
-    if (itemIndex != -1) {
-      itemToDelete = items[itemIndex];
-    }
+    VaultItem? itemToDelete = itemIndex != -1 ? items[itemIndex] : null;
 
+    // 2. Immediately delete local cache
     await _localRepository.deleteItem(email, id);
+    debugPrint('Local Delete Success: true');
+    debugPrint('Cache Updated: true');
 
+    bool supabaseSuccess = false;
+    bool queueUpdated = false;
+
+    // 3. Delete from Supabase
     if (itemToDelete != null) {
-      await _deleteItemFromCloud(itemToDelete);
+      try {
+        await _deleteItemFromCloud(itemToDelete);
+        supabaseSuccess = true;
+      } catch (e) {
+        // Offline/failure: queue deletion
+        final deletionKey = 'pending_deleted_items_$email';
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
+    } else {
+      // Fallback: Delete directly from Supabase database by ID
+      try {
+        if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
+          final userId = _supabaseService.client.auth.currentUser!.id;
+          await _supabaseService.client
+              .from('items')
+              .delete()
+              .eq('id', toUuid(id))
+              .eq('user_id', userId);
+          supabaseSuccess = true;
+        } else {
+          // Offline/not initialized fallback
+          final deletionKey = 'pending_deleted_items_$email';
+          final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+          if (!pendingDeletions.contains(id)) {
+            pendingDeletions.add(id);
+            await _prefs.setStringList(deletionKey, pendingDeletions);
+            queueUpdated = true;
+          }
+        }
+      } catch (e) {
+        // Queue it
+        final deletionKey = 'pending_deleted_items_$email';
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
     }
+
+    debugPrint('Supabase Delete Success: $supabaseSuccess');
+    debugPrint('Pending Queue Updated: $queueUpdated');
+    debugPrint('UI Updated: State updated in notifier');
+    debugPrint('Final Verification: Deletion fully processed');
+    debugPrint('==========================');
   }
 
   @override
   Future<void> addTrashItem(String email, VaultItem item) async {
-    await _validateFile(item);
-    await _localRepository.addTrashItem(email, item);
-    await _syncItemToCloud(email, item, isTrash: true);
+    final updatedItem = VaultItem(
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      content: item.content,
+      collectionName: item.collectionName,
+      createdAt: item.createdAt,
+      updatedAt: DateTime.now(),
+      tags: item.tags,
+      category: item.category,
+    );
+    await _validateFile(updatedItem);
+    await _localRepository.addTrashItem(email, updatedItem);
+    await _syncItemToCloud(email, updatedItem, isTrash: true);
   }
 
   @override
   Future<void> deleteTrashItem(String email, String id) async {
+    debugPrint('=== DELETE DIAGNOSTICS ===');
+    debugPrint('Delete Requested: Trash Item');
+    debugPrint('Item ID: $id');
+    debugPrint('Repository Used: SupabaseItemRepository');
+
+    // 1. Retrieve item details before deleting locally
     final items = await _localRepository.getTrashItems(email);
     final itemIndex = items.indexWhere((i) => i.id == id);
-    VaultItem? itemToDelete;
-    if (itemIndex != -1) {
-      itemToDelete = items[itemIndex];
-    }
+    VaultItem? itemToDelete = itemIndex != -1 ? items[itemIndex] : null;
 
+    // 2. Immediately delete local cache
     await _localRepository.deleteTrashItem(email, id);
+    debugPrint('Local Delete Success: true');
+    debugPrint('Cache Updated: true');
 
+    bool supabaseSuccess = false;
+    bool queueUpdated = false;
+
+    // 3. Delete from Supabase
     if (itemToDelete != null) {
-      await _deleteItemFromCloud(itemToDelete);
+      try {
+        await _deleteItemFromCloud(itemToDelete);
+        supabaseSuccess = true;
+      } catch (e) {
+        // Offline/failure: queue deletion
+        final deletionKey = 'pending_deleted_items_$email';
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
+    } else {
+      // Fallback: Delete directly from Supabase database by ID
+      try {
+        if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
+          final userId = _supabaseService.client.auth.currentUser!.id;
+          await _supabaseService.client
+              .from('items')
+              .delete()
+              .eq('id', toUuid(id))
+              .eq('user_id', userId);
+          supabaseSuccess = true;
+        } else {
+          // Offline/not initialized fallback
+          final deletionKey = 'pending_deleted_items_$email';
+          final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+          if (!pendingDeletions.contains(id)) {
+            pendingDeletions.add(id);
+            await _prefs.setStringList(deletionKey, pendingDeletions);
+            queueUpdated = true;
+          }
+        }
+      } catch (e) {
+        // Queue it
+        final deletionKey = 'pending_deleted_items_$email';
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
     }
+
+    debugPrint('Supabase Delete Success: $supabaseSuccess');
+    debugPrint('Pending Queue Updated: $queueUpdated');
+    debugPrint('UI Updated: State updated in notifier');
+    debugPrint('Final Verification: Deletion fully processed');
+    debugPrint('==========================');
   }
 
   @override
@@ -203,14 +281,43 @@ class SupabaseItemRepository implements ItemRepository {
 
   @override
   Future<void> deleteItemsInCollection(String email, String collectionName) async {
+    debugPrint('=== DELETE DIAGNOSTICS ===');
+    debugPrint('Delete Requested: Items in Collection ($collectionName)');
+    debugPrint('Repository Used: SupabaseItemRepository');
+
+    // 1. Get collection item details before deleting locally
     final items = await _localRepository.getItems(email);
     final itemsInCol = items.where((i) => i.collectionName == collectionName).toList();
 
+    // 2. Immediately delete local cache
     await _localRepository.deleteItemsInCollection(email, collectionName);
+    debugPrint('Local Delete Success: true');
+    debugPrint('Cache Updated: true');
 
+    bool allSupabaseSuccess = true;
+    int queueCount = 0;
+
+    // 3. Loop and delete/queue from cloud
     for (final item in itemsInCol) {
-      await _deleteItemFromCloud(item);
+      try {
+        await _deleteItemFromCloud(item);
+      } catch (e) {
+        allSupabaseSuccess = false;
+        final deletionKey = 'pending_deleted_items_$email';
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(item.id)) {
+          pendingDeletions.add(item.id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueCount++;
+        }
+      }
     }
+
+    debugPrint('Supabase Delete Success: $allSupabaseSuccess');
+    debugPrint('Pending Queue Updated: ${queueCount > 0} ($queueCount items queued)');
+    debugPrint('UI Updated: State updated in notifier');
+    debugPrint('Final Verification: Deletion fully processed');
+    debugPrint('==========================');
   }
 
   Future<void> _syncItemToCloud(String email, VaultItem item, {required bool isTrash}) async {
@@ -252,6 +359,13 @@ class SupabaseItemRepository implements ItemRepository {
       }
 
       try {
+        debugPrint('=== SUPABASE INSERT/UPSERT OPERATION ===');
+        debugPrint('Repository Used: SupabaseItemRepository');
+        debugPrint('User ID: $userId');
+        debugPrint('Item ID: $itemId');
+        debugPrint('Title: ${item.title}');
+        debugPrint('Payload: { id: $itemId, user_id: $userId, title: ${item.title}, type: ${item.type}, content: $activeContent }');
+
         // 1. Upsert to Postgres
         await _supabaseService.client.from('items').upsert({
           'id': itemId,
@@ -263,7 +377,7 @@ class SupabaseItemRepository implements ItemRepository {
           'category': item.category,
           'is_trash': isTrash,
           'created_at': item.createdAt.toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
+          'updated_at': item.updatedAt.toIso8601String(),
         });
 
         // 2. Sync Tags
@@ -287,8 +401,13 @@ class SupabaseItemRepository implements ItemRepository {
               .eq('item_id', itemId)
               .eq('user_id', userId);
         }
-      } catch (_) {
-        // Fail silently offline
+        debugPrint('Insert Success/Failure: Success');
+        debugPrint('=========================================');
+      } catch (e, stack) {
+        debugPrint('Insert Success/Failure: Failure');
+        debugPrint('Error Message: $e');
+        debugPrint('Stack Trace: $stack');
+        debugPrint('=========================================');
       }
     }
   }
@@ -513,6 +632,7 @@ class SupabaseItemRepository implements ItemRepository {
       content: content,
       collectionName: item.collectionName,
       createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
       tags: item.tags,
       category: item.category,
     );

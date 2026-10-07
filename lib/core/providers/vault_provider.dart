@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import 'providers.dart';
@@ -31,12 +32,21 @@ class VaultNotifier extends StateNotifier<List<VaultItem>> {
   }
 
   Future<void> deleteItem(String id) async {
+    debugPrint('=== UI DELETE ACTION ===');
+    debugPrint('Item ID: $id');
+    
+    // 1. Immediately remove the item from local UI
+    state = state.where((item) => item.id != id).toList();
+    debugPrint('UI Updated: Removed $id from state');
+    
+    // 2. Process cache and cloud deletions
     if (_isTrash) {
       await _repository.deleteTrashItem(_email, id);
     } else {
       await _repository.deleteItem(_email, id);
     }
-    state = state.where((item) => item.id != id).toList();
+    
+    debugPrint('========================');
   }
 
   Future<void> reloadItems() async {
@@ -102,6 +112,8 @@ final vaultProvider = StateNotifierProvider<VaultNotifier, List<VaultItem>>((ref
   final repository = ref.watch(itemRepositoryProvider);
   final authState = ref.watch(authStateProvider);
   final email = authState.user?.email ?? 'anonymous';
+  // Rebuild whenever a sync completes
+  ref.watch(syncTriggerProvider);
   return VaultNotifier(repository, email: email, isTrash: false);
 });
 
@@ -109,5 +121,7 @@ final trashProvider = StateNotifierProvider<VaultNotifier, List<VaultItem>>((ref
   final repository = ref.watch(itemRepositoryProvider);
   final authState = ref.watch(authStateProvider);
   final email = authState.user?.email ?? 'anonymous';
+  // Rebuild whenever a sync completes
+  ref.watch(syncTriggerProvider);
   return VaultNotifier(repository, email: email, isTrash: true);
 });

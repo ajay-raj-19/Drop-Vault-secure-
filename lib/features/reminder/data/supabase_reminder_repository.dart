@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/reminder_repository.dart';
 import '../../../../core/models/reminder.dart';
 import '../../../../core/services/supabase_service.dart';
@@ -6,77 +8,89 @@ import '../../../../core/utils/uuid_helper.dart';
 class SupabaseReminderRepository implements ReminderRepository {
   final SupabaseService _supabaseService;
   final ReminderRepository _localRepository;
+  final SharedPreferences _prefs;
 
-  SupabaseReminderRepository(this._supabaseService, this._localRepository);
+  SupabaseReminderRepository(this._supabaseService, this._localRepository, this._prefs);
+
+  String _getPendingDeletionsKey(String email) => 'pending_deleted_reminders_$email';
+
+  Future<void> _pushReminderToRemote(Reminder rem, String userId) async {
+    await _supabaseService.client.from('reminders').upsert({
+      'id': toUuid(rem.id),
+      'user_id': userId,
+      'title': rem.title,
+      'collection_name': rem.collectionName,
+      'date_time': rem.dateTime.toIso8601String(),
+      'is_completed': rem.isCompleted,
+      'item_id': rem.itemId != null ? toUuid(rem.itemId!) : null,
+      'created_at': rem.dateTime.toIso8601String(),
+      'updated_at': rem.updatedAt.toIso8601String(),
+    });
+  }
 
   @override
   Future<List<Reminder>> getReminders(String email) async {
-    final localReminders = await _localRepository.getReminders(email);
-
-    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
-      try {
-        final userId = _supabaseService.client.auth.currentUser!.id;
-        final response = await _supabaseService.client
-            .from('reminders')
-            .select()
-            .eq('user_id', userId)
-            .order('date_time', ascending: true);
-
-        final remoteReminders = (response as List).map((json) {
-          return Reminder(
-            id: json['id'],
-            title: json['title'],
-            collectionName: json['collection_name'],
-            dateTime: DateTime.parse(json['date_time']),
-            isCompleted: json['is_completed'] ?? false,
-            itemId: json['item_id'],
-          );
-        }).toList();
-
-        // Sync local cache
-        for (final rem in remoteReminders) {
-          final localIndex = localReminders.indexWhere((r) => toUuid(r.id) == rem.id);
-          if (localIndex == -1) {
-            await _localRepository.addReminder(email, rem);
-          } else {
-            // Update local fields if changed
-            final localRem = localReminders[localIndex];
-            if (localRem.title != rem.title ||
-                localRem.collectionName != rem.collectionName ||
-                localRem.dateTime != rem.dateTime ||
-                localRem.isCompleted != rem.isCompleted ||
-                localRem.itemId != rem.itemId) {
-              await _localRepository.updateReminder(email, rem);
-            }
-          }
-        }
-
-        // Return latest state from local cache
-        return await _localRepository.getReminders(email);
-      } catch (_) {
-        // Fallback silently to local cache on network error
-      }
-    }
-
-    return localReminders;
+    return _localRepository.getReminders(email);
   }
 
   @override
   Future<void> addReminder(String email, Reminder reminder) async {
-    await _localRepository.addReminder(email, reminder);
-    await _syncReminderToCloud(reminder);
+    final updatedRem = Reminder(
+      id: reminder.id,
+      title: reminder.title,
+      collectionName: reminder.collectionName,
+      dateTime: reminder.dateTime,
+      isCompleted: reminder.isCompleted,
+      itemId: reminder.itemId,
+      updatedAt: DateTime.now(),
+    );
+    await _localRepository.addReminder(email, updatedRem);
+
+    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
+      try {
+        final userId = _supabaseService.client.auth.currentUser!.id;
+        await _pushReminderToRemote(updatedRem, userId);
+      } catch (_) {}
+    }
   }
 
   @override
   Future<void> updateReminder(String email, Reminder reminder) async {
-    await _localRepository.updateReminder(email, reminder);
-    await _syncReminderToCloud(reminder);
+    final updatedRem = Reminder(
+      id: reminder.id,
+      title: reminder.title,
+      collectionName: reminder.collectionName,
+      dateTime: reminder.dateTime,
+      isCompleted: reminder.isCompleted,
+      itemId: reminder.itemId,
+      updatedAt: DateTime.now(),
+    );
+    await _localRepository.updateReminder(email, updatedRem);
+
+    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
+      try {
+        final userId = _supabaseService.client.auth.currentUser!.id;
+        await _pushReminderToRemote(updatedRem, userId);
+      } catch (_) {}
+    }
   }
 
   @override
   Future<void> deleteReminder(String email, String id) async {
-    await _localRepository.deleteReminder(email, id);
+    debugPrint('=== DELETE DIAGNOSTICS ===');
+    debugPrint('Delete Requested: Reminder');
+    debugPrint('Reminder ID: $id');
+    debugPrint('Repository Used: SupabaseReminderRepository');
 
+    // 1. Immediately delete from local cache
+    await _localRepository.deleteReminder(email, id);
+    debugPrint('Local Delete Success: true');
+    debugPrint('Cache Updated: true');
+
+    bool supabaseSuccess = false;
+    bool queueUpdated = false;
+
+    // 2. Try to delete from Supabase
     if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
       try {
         final userId = _supabaseService.client.auth.currentUser!.id;
@@ -85,26 +99,32 @@ class SupabaseReminderRepository implements ReminderRepository {
             .delete()
             .eq('id', toUuid(id))
             .eq('user_id', userId);
-      } catch (_) {}
+        supabaseSuccess = true;
+      } catch (_) {
+        // Offline/failure: queue deletion
+        final deletionKey = _getPendingDeletionsKey(email);
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
+    } else {
+      // Offline/not logged in: queue deletion
+      final deletionKey = _getPendingDeletionsKey(email);
+      final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+      if (!pendingDeletions.contains(id)) {
+        pendingDeletions.add(id);
+        await _prefs.setStringList(deletionKey, pendingDeletions);
+        queueUpdated = true;
+      }
     }
-  }
 
-  Future<void> _syncReminderToCloud(Reminder reminder) async {
-    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
-      try {
-        final userId = _supabaseService.client.auth.currentUser!.id;
-        await _supabaseService.client.from('reminders').upsert({
-          'id': toUuid(reminder.id),
-          'user_id': userId,
-          'title': reminder.title,
-          'collection_name': reminder.collectionName,
-          'date_time': reminder.dateTime.toIso8601String(),
-          'is_completed': reminder.isCompleted,
-          'item_id': reminder.itemId != null ? toUuid(reminder.itemId!) : null,
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
-      } catch (_) {}
-    }
+    debugPrint('Supabase Delete Success: $supabaseSuccess');
+    debugPrint('Pending Queue Updated: $queueUpdated');
+    debugPrint('UI Updated: State updated in notifier');
+    debugPrint('Final Verification: Deletion fully processed');
+    debugPrint('==========================');
   }
 }

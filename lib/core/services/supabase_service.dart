@@ -34,12 +34,14 @@ class SupabaseService {
 
       // Simple URI parse to avoid crash in SDK on malformed strings
       final uri = Uri.tryParse(supabaseUrl);
-      if (uri == null || !uri.hasAbsolutePath || !supabaseUrl.startsWith('http')) {
+      if (uri == null || uri.host.isEmpty || !supabaseUrl.startsWith('http')) {
         throw Exception('Invalid SUPABASE_URL format: $supabaseUrl');
       }
 
       await Supabase.initialize(
         url: supabaseUrl,
+        // DropVaultApp owns callback handling; a PKCE code can only be used once.
+        authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
         anonKey: supabaseAnonKey, // ignore: deprecated_member_use
       );
       _initialized = true;

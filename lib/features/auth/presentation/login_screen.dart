@@ -34,7 +34,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (_isLoading || _isSuccess) return;
 
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -145,47 +145,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _handleGoogleLogin() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
     try {
-      final email = await ref.read(authStateProvider.notifier).pickGoogleAccount();
-      if (email != null && email.isNotEmpty) {
-        final registered = await ref.read(authStateProvider.notifier).isEmailRegistered(email);
-        if (registered) {
-          await ref.read(authStateProvider.notifier).signInWithGoogle(email, '');
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            context.go('/signup', extra: {'email': email});
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
+      await ref.read(authStateProvider.notifier).signInWithGoogle('', '');
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ));
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -452,7 +424,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                             // Google Button
                             OutlinedButton.icon(
-                              onPressed: _handleGoogleLogin,
+                              onPressed: _isLoading ? null : _handleGoogleLogin,
                               icon: Image.asset(
                                 AppAssets.googleLogo,
                                 width: 24,
@@ -481,8 +453,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       const SizedBox(height: 32),
 
                       // Footer Links
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        runSpacing: 8,
                         children: [
                           const Text(
                             "Don't have an account? ",

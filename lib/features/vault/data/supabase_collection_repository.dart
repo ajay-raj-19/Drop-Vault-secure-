@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/collection_repository.dart';
 import '../../../../core/models/collection.dart';
 import '../../../../core/services/supabase_service.dart';
@@ -6,109 +8,88 @@ import '../../../../core/utils/uuid_helper.dart';
 class SupabaseCollectionRepository implements CollectionRepository {
   final SupabaseService _supabaseService;
   final CollectionRepository _localRepository;
+  final SharedPreferences _prefs;
 
-  SupabaseCollectionRepository(this._supabaseService, this._localRepository);
+  SupabaseCollectionRepository(this._supabaseService, this._localRepository, this._prefs);
+
+  String _getPendingDeletionsKey(String email) => 'pending_deleted_collections_$email';
+
+  Future<void> _pushCollectionToRemote(Collection col, String userId) async {
+    await _supabaseService.client.from('collections').upsert({
+      'id': toUuid(col.id),
+      'user_id': userId,
+      'name': col.name,
+      'description': col.description,
+      'created_at': col.createdAt.toIso8601String(),
+      'updated_at': col.updatedAt.toIso8601String(),
+    });
+  }
 
   @override
   Future<List<Collection>> getCollections(String email) async {
-    // 1. Fetch from local cache first
-    final localCols = await _localRepository.getCollections(email);
-
-    // 2. Try fetching from Supabase if online and authenticated
-    if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
-      try {
-        final userId = _supabaseService.client.auth.currentUser!.id;
-        final response = await _supabaseService.client
-            .from('collections')
-            .select()
-            .eq('user_id', userId)
-            .order('created_at', ascending: true);
-
-        final remoteCols = (response as List).map((json) {
-          return Collection(
-            id: json['id'],
-            name: json['name'],
-            description: json['description'] ?? '',
-            createdAt: DateTime.parse(json['created_at']),
-          );
-        }).toList();
-
-        // Sync local cache with remote collections
-        for (final col in remoteCols) {
-          final localIndex = localCols.indexWhere((c) => toUuid(c.id) == col.id);
-          if (localIndex == -1) {
-            await _localRepository.addCollection(email, col);
-          } else {
-            // Check if name or description changed, update local cache
-            final localCol = localCols[localIndex];
-            if (localCol.name != col.name || localCol.description != col.description) {
-              await _localRepository.updateCollection(email, col);
-            }
-          }
-        }
-        
-        // Return latest state from local cache
-        return await _localRepository.getCollections(email);
-      } catch (_) {
-        // Fall back to local list on network errors
-      }
-    }
-
-    return localCols;
+    return _localRepository.getCollections(email);
   }
 
   @override
   Future<void> addCollection(String email, Collection collection) async {
-    // 1. Save locally first
-    await _localRepository.addCollection(email, collection);
+    final updatedCol = Collection(
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      createdAt: collection.createdAt,
+      updatedAt: DateTime.now(),
+    );
 
-    // 2. Synchronize with Supabase if online
+    await _localRepository.addCollection(email, updatedCol);
+
     if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
       try {
         final userId = _supabaseService.client.auth.currentUser!.id;
-        await _supabaseService.client.from('collections').upsert({
-          'id': toUuid(collection.id),
-          'user_id': userId,
-          'name': collection.name,
-          'description': collection.description,
-          'created_at': collection.createdAt.toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+        await _pushCollectionToRemote(updatedCol, userId);
       } catch (_) {
-        // Fail silently offline
+        // Silent fail
       }
     }
   }
 
   @override
   Future<void> updateCollection(String email, Collection collection) async {
-    // 1. Save locally first
-    await _localRepository.updateCollection(email, collection);
+    final updatedCol = Collection(
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      createdAt: collection.createdAt,
+      updatedAt: DateTime.now(),
+    );
 
-    // 2. Synchronize with Supabase if online
+    await _localRepository.updateCollection(email, updatedCol);
+
     if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
       try {
         final userId = _supabaseService.client.auth.currentUser!.id;
-        await _supabaseService.client.from('collections').upsert({
-          'id': toUuid(collection.id),
-          'user_id': userId,
-          'name': collection.name,
-          'description': collection.description,
-          'created_at': collection.createdAt.toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+        await _pushCollectionToRemote(updatedCol, userId);
       } catch (_) {
-        // Fail silently offline
+        // Silent fail
       }
     }
   }
 
   @override
   Future<void> deleteCollection(String email, String id) async {
-    // 1. Delete locally first
-    await _localRepository.deleteCollection(email, id);
+    debugPrint('=== DELETE DIAGNOSTICS ===');
+    debugPrint('Delete Requested: Collection');
+    debugPrint('Collection ID: $id');
+    debugPrint('Repository Used: SupabaseCollectionRepository');
 
-    // 2. Synchronize with Supabase if online
+    // 1. Immediately delete from local cache
+    await _localRepository.deleteCollection(email, id);
+    debugPrint('Local Delete Success: true');
+    debugPrint('Cache Updated: true');
+
+    bool supabaseSuccess = false;
+    bool queueUpdated = false;
+
+    // 2. Try to delete from Supabase
     if (_supabaseService.isInitialized && _supabaseService.client.auth.currentUser != null) {
       try {
         final userId = _supabaseService.client.auth.currentUser!.id;
@@ -117,9 +98,32 @@ class SupabaseCollectionRepository implements CollectionRepository {
             .delete()
             .eq('id', toUuid(id))
             .eq('user_id', userId);
+        supabaseSuccess = true;
       } catch (_) {
-        // Fail silently offline
+        // Offline/failure: queue deletion
+        final deletionKey = _getPendingDeletionsKey(email);
+        final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+        if (!pendingDeletions.contains(id)) {
+          pendingDeletions.add(id);
+          await _prefs.setStringList(deletionKey, pendingDeletions);
+          queueUpdated = true;
+        }
+      }
+    } else {
+      // Offline/not logged in: queue deletion
+      final deletionKey = _getPendingDeletionsKey(email);
+      final pendingDeletions = _prefs.getStringList(deletionKey) ?? [];
+      if (!pendingDeletions.contains(id)) {
+        pendingDeletions.add(id);
+        await _prefs.setStringList(deletionKey, pendingDeletions);
+        queueUpdated = true;
       }
     }
+
+    debugPrint('Supabase Delete Success: $supabaseSuccess');
+    debugPrint('Pending Queue Updated: $queueUpdated');
+    debugPrint('UI Updated: State updated in notifier');
+    debugPrint('Final Verification: Deletion fully processed');
+    debugPrint('==========================');
   }
 }

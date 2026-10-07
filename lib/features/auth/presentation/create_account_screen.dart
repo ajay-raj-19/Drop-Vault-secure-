@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
+import '../domain/auth_state.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_assets.dart';
@@ -28,6 +29,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
 
   bool _passwordsMatch = true;
   bool _isLoadingGoogle = false;
+  bool _isSigningUp = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   final TextEditingController _verificationController = TextEditingController();
@@ -123,9 +125,10 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
   }
 
   void _handleSignup() async {
+    if (_isSigningUp || _isLoadingGoogle) return;
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,7 +160,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
       return;
     }
 
-    if (!_passwordsMatch) {
+    if (password != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Passwords do not match.'),
@@ -167,8 +170,14 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
       return;
     }
 
+    setState(() => _isSigningUp = true);
     try {
       await ref.read(authStateProvider.notifier).signUp(email, password, name);
+      if (mounted && ref.read(authRepositoryProvider).currentAuthState.status != AuthStatus.authenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Check your email for the confirmation link, then sign in.'),
+        ));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,51 +187,25 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSigningUp = false);
     }
   }
 
   void _simulateGoogleLogin() async {
-    setState(() {
-      _isLoadingGoogle = true;
-    });
+    if (_isLoadingGoogle || _isSigningUp) return;
+    setState(() => _isLoadingGoogle = true);
     try {
-      final email = await ref.read(authStateProvider.notifier).pickGoogleAccount();
-      if (email != null && email.isNotEmpty) {
-        final registered = await ref.read(authStateProvider.notifier).isEmailRegistered(email);
-        if (registered) {
-          await ref.read(authStateProvider.notifier).signInWithGoogle(email, '');
-          if (mounted) {
-            setState(() {
-              _isLoadingGoogle = false;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              _isLoadingGoogle = false;
-              _emailController.text = email;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoadingGoogle = false;
-          });
-        }
-      }
+      await ref.read(authStateProvider.notifier).signInWithGoogle('', '');
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingGoogle = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ));
       }
+    } finally {
+      if (mounted) setState(() => _isLoadingGoogle = false);
     }
   }
 
@@ -579,7 +562,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
 
                           // Submit Button
                           GestureDetector(
-                            onTap: _handleSignup,
+                            onTap: _isSigningUp || _isLoadingGoogle ? null : _handleSignup,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               height: 56,
@@ -619,7 +602,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> with SingleTickerProvid
 
                           // Social Login
                           OutlinedButton.icon(
-                            onPressed: _simulateGoogleLogin,
+                            onPressed: _isLoadingGoogle || _isSigningUp ? null : _simulateGoogleLogin,
                             icon: _isLoadingGoogle 
                                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                                 : Image.asset(

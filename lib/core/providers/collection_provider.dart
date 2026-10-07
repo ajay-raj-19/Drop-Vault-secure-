@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import 'providers.dart';
@@ -36,8 +37,17 @@ class CollectionNotifier extends StateNotifier<List<Collection>> {
   }
 
   Future<void> deleteCollection(String id) async {
-    await _repository.deleteCollection(_email, id);
+    debugPrint('=== UI DELETE ACTION ===');
+    debugPrint('Collection ID: $id');
+    
+    // 1. Immediately remove from local UI
     state = state.where((col) => col.id != id).toList();
+    debugPrint('UI Updated: Removed $id from state');
+    
+    // 2. Process cache and cloud deletions
+    await _repository.deleteCollection(_email, id);
+    
+    debugPrint('========================');
   }
 
   Future<void> updateCollection(Collection updatedCol) async {
@@ -76,5 +86,7 @@ final collectionProvider = StateNotifierProvider<CollectionNotifier, List<Collec
   final repository = ref.watch(collectionRepositoryProvider);
   final authState = ref.watch(authStateProvider);
   final email = authState.user?.email ?? 'anonymous';
+  // Rebuild whenever a sync completes
+  ref.watch(syncTriggerProvider);
   return CollectionNotifier(repository, email: email);
 });
